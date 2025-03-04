@@ -8,10 +8,11 @@ from typing import Optional
 from fastapi.responses import JSONResponse
 
 class RateLimiter:
-    def __init__(self, redis: Redis, requests_per_minute: int = 60):
+    def __init__(self, redis: Redis, requests_per_minute: int = 60, logger: Logger | None = None):
         self.redis = redis
         self.requests_per_minute = requests_per_minute
         self.window = 60  # 1 minute window
+        self.logger = logger
 
     async def is_rate_limited(self, key: str) -> tuple[bool, Optional[int]]:
         """
@@ -22,21 +23,33 @@ class RateLimiter:
         current_ms = int(current * 1000000)  # Convert to microseconds for uniqueness
         window_start = int(current - self.window)
 
+        if self.logger:
+            self.logger.debug(f"Rate limit check for key: {key}")
+            self.logger.debug(f"Current time: {current}, Window start: {window_start}")
+
         async with self.redis.pipeline(transaction=True) as pipe:
             # Remove old requests
             await pipe.zremrangebyscore(key, 0, window_start)
+            # Get count of requests in window before adding current request
+            await pipe.zcount(key, window_start, int(current))
             # Add current request with microsecond precision to ensure uniqueness
             await pipe.zadd(key, {f"{current_ms}": current})
-            # Get count of requests in window
-            await pipe.zcount(key, window_start, int(current))
             # Set key expiration
             await pipe.expire(key, self.window)
-            _, _, count, _ = await pipe.execute()
+            _, count, _, _ = await pipe.execute()
 
-        if count > self.requests_per_minute:
+            if self.logger:
+                self.logger.debug(f"Request count in window: {count}/{self.requests_per_minute}")
+
+        # Check if adding this request would exceed the limit
+        if count >= self.requests_per_minute:
             retry_after = self.window - (int(current) - window_start)
+            if self.logger:
+                self.logger.debug(f"Rate limit exceeded. Retry after: {retry_after}s")
             return True, retry_after
 
+        if self.logger:
+            self.logger.debug("Request allowed")
         return False, None
 
 async def check_rate_limit(request: Request, target_url: str, rate_limit: int, logger: Logger, settings: Settings) -> None | JSONResponse:
@@ -50,7 +63,7 @@ async def check_rate_limit(request: Request, target_url: str, rate_limit: int, l
         return
 
     logger.debug("Redis connection available")
-    rate_limiter = RateLimiter(redis, rate_limit)
+    rate_limiter = RateLimiter(redis, rate_limit, logger)
     
     # Use IP address and path prefix as the rate limit key
     client_ip = request.client.host if request.client else "unknown"
