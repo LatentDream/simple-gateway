@@ -11,6 +11,12 @@ def base_url():
     return "http://test"
 
 @pytest.fixture
+def app():
+    """Create test application with mocked auth"""
+    # Mock Middleware here
+    return create_server(TestSettings(Profile.TEST))
+
+@pytest.fixture
 def test_client(app: FastAPI):
     """TestClient with Test profile with db lifespan handling """
     with TestClient(app) as client:

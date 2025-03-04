@@ -1,14 +1,9 @@
-import pytest
 from fastapi.testclient import TestClient
-from src.main import app
 from tests.api.mock_proxy_api import configure_proxy_mock
 
-@pytest.fixture
-def client():
-    return TestClient(app)
 
 class TestProxyIntegration:
-    def test_proxy_get_request_success(self, client, monkeypatch):
+    def test_proxy_get_request_success(self, test_client: TestClient, monkeypatch):
         # Configure mock responses for the proxy
         test_content = b'{"message": "Success from service1"}'
         test_headers = {"content-type": "application/json"}
@@ -19,14 +14,14 @@ class TestProxyIntegration:
         configure_proxy_mock(monkeypatch, responses)
         
         # Make request to proxy endpoint
-        response = client.get("/api/service1/users")
+        response = test_client.get("/api/service1/users")
         
         # Verify response
         assert response.status_code == 200
         assert response.content == test_content
         assert response.headers["content-type"] == "application/json"
     
-    def test_proxy_post_request_with_body(self, client, monkeypatch):
+    def test_proxy_post_request_with_body(self, test_client: TestClient, monkeypatch):
         # Configure mock responses
         test_content = b'{"id": 1, "status": "created"}'
         test_headers = {"content-type": "application/json"}
@@ -40,7 +35,7 @@ class TestProxyIntegration:
         request_body = {"name": "test user", "email": "test@example.com"}
         
         # Make POST request to proxy endpoint
-        response = client.post(
+        response = test_client.post(
             "/api/service1/users",
             json=request_body
         )
@@ -50,7 +45,7 @@ class TestProxyIntegration:
         assert response.content == test_content
         assert response.headers["content-type"] == "application/json"
     
-    def test_proxy_with_query_params(self, client, monkeypatch):
+    def test_proxy_with_query_params(self, test_client: TestClient, monkeypatch):
         # Configure mock responses
         test_content = b'{"users": [{"id": 1, "name": "test"}]}'
         test_headers = {"content-type": "application/json"}
@@ -61,14 +56,14 @@ class TestProxyIntegration:
         configure_proxy_mock(monkeypatch, responses)
         
         # Make request with query parameters
-        response = client.get("/api/service1/users?page=1&limit=10")
+        response = test_client.get("/api/service1/users?page=1&limit=10")
         
         # Verify response
         assert response.status_code == 200
         assert response.content == test_content
         assert response.headers["content-type"] == "application/json"
     
-    def test_proxy_with_custom_headers(self, client, monkeypatch):
+    def test_proxy_with_custom_headers(self, test_client: TestClient, monkeypatch):
         # Configure mock responses
         test_content = b'{"data": "authorized content"}'
         test_headers = {"content-type": "application/json"}
@@ -83,7 +78,7 @@ class TestProxyIntegration:
             "Authorization": "Bearer test-token",
             "X-Custom-Header": "test-value"
         }
-        response = client.get(
+        response = test_client.get(
             "/api/service1/protected",
             headers=custom_headers
         )
@@ -93,7 +88,7 @@ class TestProxyIntegration:
         assert response.content == test_content
         assert response.headers["content-type"] == "application/json"
     
-    def test_proxy_service_error(self, client, monkeypatch):
+    def test_proxy_service_error(self, test_client: TestClient, monkeypatch):
         # Configure mock responses for error case
         test_content = b'{"error": "Internal Server Error"}'
         test_headers = {"content-type": "application/json"}
@@ -104,14 +99,14 @@ class TestProxyIntegration:
         configure_proxy_mock(monkeypatch, responses)
         
         # Make request to endpoint that will return error
-        response = client.get("/api/service1/error")
+        response = test_client.get("/api/service1/error")
         
         # Verify error response is forwarded correctly
         assert response.status_code == 500
         assert response.content == test_content
         assert response.headers["content-type"] == "application/json"
     
-    def test_proxy_service_not_found(self, client, monkeypatch):
+    def test_proxy_service_not_found(self, test_client: TestClient, monkeypatch):
         # Configure mock responses for 404 case
         test_content = b'{"error": "Resource not found"}'
         test_headers = {"content-type": "application/json"}
@@ -122,7 +117,7 @@ class TestProxyIntegration:
         configure_proxy_mock(monkeypatch, responses)
         
         # Make request to nonexistent endpoint
-        response = client.get("/api/service1/nonexistent")
+        response = test_client.get("/api/service1/nonexistent")
         
         # Verify 404 response is forwarded correctly
         assert response.status_code == 404

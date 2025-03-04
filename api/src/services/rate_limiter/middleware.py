@@ -113,8 +113,8 @@ def setup_gateway(app: FastAPI, settings: Settings, logger: Logger):
         target_url, rate_limit = route_config
 
         # Only check rate limit if a limit is set
-        # if rate_limit:
-        #     await check_rate_limit(request, target_url, rate_limit, logger, settings)
+        if rate_limit:
+            await check_rate_limit(request, target_url, rate_limit, logger, settings)
 
         # Forward the request to the target service
         return await forward_request(request, target_url, logger)
