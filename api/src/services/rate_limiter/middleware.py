@@ -1,10 +1,11 @@
 from logging import Logger
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, responses
 from redis.asyncio import Redis
 from src.settings import Settings
 from src.services.proxy.service import forward_request
 import time
 from typing import Optional
+from fastapi.responses import JSONResponse
 
 class RateLimiter:
     def __init__(self, redis: Redis, requests_per_minute: int = 60):
@@ -38,7 +39,7 @@ class RateLimiter:
 
         return False, None
 
-async def check_rate_limit(request: Request, target_url: str, rate_limit: int, logger: Logger, settings: Settings) -> None:
+async def check_rate_limit(request: Request, target_url: str, rate_limit: int, logger: Logger, settings: Settings) -> None | JSONResponse:
     """Check rate limit for the request. Raises HTTPException if rate limited."""
     logger.debug(f"Starting rate limit check for target_url: {target_url}, rate_limit: {rate_limit}")
     
@@ -84,14 +85,24 @@ async def check_rate_limit(request: Request, target_url: str, rate_limit: int, l
                 "X-RateLimit-Reset": str(retry_after)
             }
             logger.debug(f"Request rate limited. Headers: {headers}")
-            raise HTTPException(
+            return JSONResponse(
                 status_code=429,
-                detail="Too many requests",
+                content={"detail": "Too many requests"},
                 headers=headers
             )
+    except HTTPException as exc:
+        # Convert HTTP exceptions to JSON responses
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+            headers=exc.headers
+        )
     except Exception as e:
         logger.error(f"Error during rate limiting check: {str(e)}")
-        raise HTTPException(status_code=500, detail="Rate limiting error")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Rate limiting error"}
+        )
 
 def setup_gateway(app: FastAPI, settings: Settings, logger: Logger):
     """Setup gateway middleware with rate limiting for configured routes"""
@@ -114,7 +125,37 @@ def setup_gateway(app: FastAPI, settings: Settings, logger: Logger):
 
         # Only check rate limit if a limit is set
         if rate_limit:
-            await check_rate_limit(request, target_url, rate_limit, logger, settings)
+            response = await check_rate_limit(request, target_url, rate_limit, logger, settings)
+            if response:
+                return response
 
         # Forward the request to the target service
-        return await forward_request(request, target_url, logger)
+        response = await forward_request(request, target_url, logger)
+        
+        # Add rate limit headers to successful responses if rate limiting is enabled
+        if rate_limit and hasattr(request.app.state, 'redis'):
+            # TODO: Move this inner if in a func
+            redis = request.app.state.redis
+            if redis:
+                try:
+                    client_ip = request.client.host if request.client else "unknown"
+                    path_prefix = next(prefix for prefix in settings.ROUTE_FORWARDING.keys() 
+                                    if request.url.path.startswith(prefix))
+                    key = f"rate_limit:{path_prefix}:{client_ip}"
+                    
+                    # Get current request count
+                    current = int(time.time())
+                    window_start = current - 60  # 60 seconds window
+                    request_count = await redis.zcount(key, window_start, current)
+                    
+                    # Calculate remaining requests
+                    remaining = max(0, rate_limit - request_count)
+                    
+                    # Add headers to response
+                    response.headers["X-RateLimit-Limit"] = str(rate_limit)
+                    response.headers["X-RateLimit-Remaining"] = str(remaining)
+                    response.headers["X-RateLimit-Reset"] = str(60 - (current % 60))  # Time until window reset
+                except Exception as e:
+                    logger.error(f"Error adding rate limit headers: {str(e)}")
+                    
+        return response
