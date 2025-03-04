@@ -13,3 +13,15 @@ export const LoginCredentialsSchema = z.object({
 });
 
 export type LoginCredentials = z.infer<typeof LoginCredentialsSchema>;
+
+export const RouteForwardingConfigSchema = z.object({
+    target_url: z.string(),
+    rate_limit: z.number()
+});
+
+export const RouteForwardingResponseSchema = z.object({
+    routes: z.record(RouteForwardingConfigSchema)
+});
+
+export type RouteForwardingConfig = z.infer<typeof RouteForwardingConfigSchema>;
+export type RouteForwardingResponse = z.infer<typeof RouteForwardingResponseSchema>;

@@ -1,4 +1,4 @@
-import { AuthenticatedUser, LoginCredentials } from "@/types/auth";
+import { AuthenticatedUser, LoginCredentials, RouteForwardingResponse } from "@/types/auth";
 import { api } from "./request";
 
 export async function health_check(): Promise<string> {
@@ -15,7 +15,7 @@ export async function health_check(): Promise<string> {
 
 export async function me(skipErrorToast: boolean = false): Promise<AuthenticatedUser | null> {
     try {
-        const data = await api.get<AuthenticatedUser>("users/me", { skipErrorToast });
+        const data = await api.get<AuthenticatedUser>("admin/me", { skipErrorToast });
         return data;
     } catch (error) {
         console.error('Failed to fetch user:', error);
@@ -25,10 +25,20 @@ export async function me(skipErrorToast: boolean = false): Promise<Authenticated
 
 export async function login(credentials: LoginCredentials): Promise<AuthenticatedUser | null> {
     try {
-        const data = await api.post<AuthenticatedUser>("users/login", credentials);
+        const data = await api.post<AuthenticatedUser>("admin/login", credentials);
         return data;
     } catch (error) {
         console.error('Login failed:', error);
+        return null;
+    }
+}
+
+export async function getRoutes(): Promise<RouteForwardingResponse | null> {
+    try {
+        const data = await api.get<RouteForwardingResponse>("admin/routes");
+        return data;
+    } catch (error) {
+        console.error('Failed to fetch routes:', error);
         return null;
     }
 }
