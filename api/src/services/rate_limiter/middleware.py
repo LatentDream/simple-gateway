@@ -1,3 +1,4 @@
+from logging import Logger
 from fastapi import FastAPI, Request, HTTPException
 from redis.asyncio import Redis
 from src.settings import Settings
@@ -36,7 +37,7 @@ class RateLimiter:
 
         return False, None
 
-def setup_rate_limiter(app: FastAPI, settings: Settings):
+def setup_rate_limiter(app: FastAPI, settings: Settings, logger: Logger):
     """Setup rate limiter middleware"""
     
     @app.middleware("http")
@@ -45,14 +46,11 @@ def setup_rate_limiter(app: FastAPI, settings: Settings):
         if request.url.path.startswith("/admin"):
             return await call_next(request)
 
-        # Skip rate limiting for health check
-        if request.url.path == "/rate/health_check":
-            return await call_next(request)
-
         # Get route configuration
         route_config = settings.get_route_config(request.url.path)
         if not route_config:
             # No route configuration found, return 404
+            logger.error("No Config found")
             raise HTTPException(status_code=404, detail="Route not found")
 
         target_url, rate_limit = route_config
