@@ -2,14 +2,14 @@ from fastapi.testclient import TestClient
 
 
 def test_health_check_dev(dev_client: TestClient):
-    response = dev_client.get("/")
+    response = dev_client.get("/admin/health_check")
     assert response.status_code == 200
-    assert response.json() == {"message": "ok", "profile": "DEV", "version": "local"}
+    assert response.json() == {"status": "ok", "profile": "DEV", "version": "local"}
 
 def test_health_check_prod(prod_client: TestClient):
-    response = prod_client.get("/")
+    response = prod_client.get("/admin/health_check")
     assert response.status_code == 200
-    assert response.json() == {"message": "ok", "profile": "PROD", "version": "local"}
+    assert response.json() == {"status": "ok", "profile": "PROD", "version": "local"}
 
 def test_allowed_origins_dev(dev_client: TestClient):
     """Test that DEV profile has correct CORS origins"""

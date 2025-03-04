@@ -6,6 +6,16 @@ from src.services.logging.logging import get_logger
 from src.settings import Settings, get_settings
 import base64
 from datetime import datetime
+from pydantic import BaseModel
+from typing import Dict
+
+# Pydantic models for route forwarding
+class RouteForwardingConfig(BaseModel):
+    target_url: str
+    rate_limit: int
+
+class RouteForwardingResponse(BaseModel):
+    routes: Dict[str, RouteForwardingConfig]
 
 router = APIRouter(prefix="/admin")
 security = HTTPBasic()
@@ -21,7 +31,6 @@ async def health_check(settings: Settings = Depends(get_settings)):
         "status": "ok",
         "profile": settings.PROFILE,
         "version": settings.VERSION,
-        "routes": route_config
     }
 
 @router.post("/login")
@@ -88,3 +97,23 @@ async def me(
         }
     except AttributeError:
         raise HTTPException(status_code=401, detail="Not authenticated")
+
+@router.get("/routes", response_model=RouteForwardingResponse)
+@protected_route()
+async def get_routes(
+    settings: Settings = Depends(get_settings),
+    logger = Depends(get_logger)
+):
+    """Get the current route forwarding configuration"""
+    try:
+        routes = {
+            path: RouteForwardingConfig(
+                target_url=config["target_url"],
+                rate_limit=config["rate_limit"]
+            )
+            for path, config in settings.ROUTE_FORWARDING.items()
+        }
+        return RouteForwardingResponse(routes=routes)
+    except Exception as e:
+        logger.error(f"Error getting route configuration: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
