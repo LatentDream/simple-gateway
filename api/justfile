@@ -1,0 +1,86 @@
+# List commands
+default:
+    just --list
+
+VERSION := `whoami | tr -d '\n' && echo -n "-" && git rev-parse --short HEAD`
+
+# -------------------- Build Helper ---------------------
+
+# Update the requirements.txt files
+_req:
+    #!/usr/bin/env sh
+    pip list --format=freeze > requirements.txt
+    sed -i '/buildfixer/d' requirements.txt
+    echo "Removed buildfixer from requirements.txt:"
+
+# -------------------- Run locally ---------------------
+# Development server
+dev:
+    @echo "\033[31mClean up your env with just dev-cleanup after\033[0m"
+    just _ensure-redis
+    uvicorn src.main:app --reload
+
+# Ensure Redis container is running
+_ensure-redis:
+    @echo "Checking if Redis container is running..."
+    @if ! docker ps | grep -q "redis"; then \
+        echo "Starting Redis container..."; \
+        docker rm -f redis 2>/dev/null || true; \
+        docker run -d -p 6382:6379 --name redis redis; \
+    else \
+        echo "Redis container is already running"; \
+    fi
+
+# Clean up - stop and remove Redis container
+dev-cleanup:
+    @echo "Stopping Redis container..."
+    @if [ ! -z "$$(docker ps -q -f name=redis)" ]; then \
+        echo "Stopping Redis container..."; \
+        docker stop redis; \
+        docker rm redis; \
+        echo "\033[32mRedis container stopped and removed\033[0m"; \
+    else \
+        echo "\033[33mNo Redis container running\033[0m"; \
+    fi
+
+
+# ------------ Docker Build preview --------------
+
+# Build the Docker Image of the Project
+build:
+    just _req
+    docker build . -t rate-limiter
+
+# Preview the build with Docker
+preview profile:
+    docker run -p 552:80 -t -e PROFILE={{profile}} rate-limiter
+
+# -------------------- Deploy ---------------------
+
+# Deploy the PROD API to Ploomber Cloud
+deploy openai_api_key:
+    just _req
+    PROFILE=PROD VERSION={{VERSION}} ploomber-cloud deploy
+
+# -------------------- Testing --------------------
+
+# Run all tests
+tests:
+    poetry run pytest
+
+# Run specific test(s) with full logs based on grepping pattern 
+test pattern:
+    poetry run pytest -k {{pattern}} -s -vv --log-cli-level=DEBUG
+
+# Run test coverage
+test-coverage:
+    poetry run pytest --cov=src tests/
+
+# -------------------- DB -------------------------
+# Create a new migration revision -> just migration-add "comment here"
+migration-add comment:
+    alembic revision --autogenerate -m "{{comment}}"
+
+# Upgrade the database to the latest revision
+migration-upgrade:
+    alembic upgrade head

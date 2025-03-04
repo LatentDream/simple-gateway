@@ -1,0 +1,24 @@
+{
+    "id": "CREATE_ONE_AND_ADD_ID_HERE",
+    "type": "docker",
+    "labels": [
+        "Production"
+    ],
+    "resources": {
+        "cpu": 2.0,
+        "ram": 8,
+        "gpu": 0
+    },
+    "secret-keys": ["PROFILE", "VERSION"],
+    "ignore": [
+        ".venv",
+        "venv",
+        "justfile",
+        "*__pycache__",
+        ".vscode",
+        ".pytest_cache",
+        ".coverage",
+        "tests/",
+        "app.db"
+    ]
+}

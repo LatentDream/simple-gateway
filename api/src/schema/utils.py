@@ -1,0 +1,1 @@
+type IsSuccess = bool

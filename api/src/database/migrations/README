@@ -1,0 +1,41 @@
+# Database Schema Management Workflow
+
+## Database Engine Considerations
+
+This project can use different schema management approaches for different database engines:
+
+- **SQLite**: `Currently in use` - Used as a throwaway database. Tables are created automatically at application startup.
+- **PostgreSQL**: Used as a persistent database. Schema is managed through migrations.
+
+## Migration
+
+1. Make sure all models are imported in `src/database/models/__init__.py`
+2. Generate initial migration:
+   ```sh
+   just migration-add "Description of changes"
+   ```
+3. Apply the migration:
+   ```sh
+   just migration-upgrade
+   ```
+# Commands
+
+```sh
+# Generate a new migration after model changes
+alembic revision --autogenerate -m "Description of changes"
+
+# Apply all pending migrations
+alembic upgrade head
+
+# Downgrade one migration
+alembic downgrade -1
+
+# Downgrade to specific revision
+alembic downgrade revision_id
+
+# See migration history
+alembic history
+
+# Get current database version
+alembic current
+```

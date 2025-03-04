@@ -1,0 +1,19 @@
+# List the commands
+default:
+    just --list
+
+# Start the project in Dev mode
+dev:
+    pnpm dev
+
+# Install Project Dependencies (dev)
+install:
+    pnpm install
+
+# Build the Docker Image
+build:
+    docker build . -t debugger-frontend
+
+# Preview the final container
+preview:
+    docker run -p 80:80 -t debugger-frontend
