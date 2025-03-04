@@ -37,8 +37,38 @@ class RateLimiter:
 
         return False, None
 
-def setup_rate_limiter(app: FastAPI, settings: Settings, logger: Logger):
-    """Setup rate limiter middleware"""
+async def check_rate_limit(request: Request, target_url: str, rate_limit: int, logger: Logger) -> None:
+    """Check rate limit for the request. Raises HTTPException if rate limited."""
+    redis = request.app.state.redis
+    if not redis:
+        # If Redis is not available, allow the request but log a warning
+        logger.warning("Redis not available, rate limiting disabled")
+        return
+
+    rate_limiter = RateLimiter(redis, rate_limit)
+    
+    # Use IP address and path prefix as the rate limit key
+    client_ip = request.client.host if request.client else "unknown"
+    path_prefix = next(prefix for prefix in settings.ROUTE_FORWARDING.keys() 
+                     if request.url.path.startswith(prefix))
+    key = f"rate_limit:{path_prefix}:{client_ip}"
+
+    is_limited, retry_after = await rate_limiter.is_rate_limited(key)
+    
+    if is_limited:
+        headers = {
+            "Retry-After": str(retry_after),
+            "X-RateLimit-Limit": str(rate_limit),
+            "X-RateLimit-Reset": str(retry_after)
+        }
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests",
+            headers=headers
+        )
+
+def setup_gateway(app: FastAPI, settings: Settings, logger: Logger):
+    """Setup gateway middleware with rate limiting for configured routes"""
     
     @app.middleware("http")
     async def rate_limit_middleware(request: Request, call_next):
@@ -53,35 +83,12 @@ def setup_rate_limiter(app: FastAPI, settings: Settings, logger: Logger):
             logger.error("No Config found")
             raise HTTPException(status_code=404, detail="Route not found")
 
+        logger.debug(f"route_config found: {route_config}")
         target_url, rate_limit = route_config
 
-        redis = request.app.state.redis
-        if not redis:
-            # If Redis is not available, allow the request but log a warning
-            app.state.logger.warning("Redis not available, rate limiting disabled")
-            return await forward_request(request, target_url)
-
-        rate_limiter = RateLimiter(redis, rate_limit)
-        
-        # Use IP address and path prefix as the rate limit key
-        client_ip = request.client.host if request.client else "unknown"
-        path_prefix = next(prefix for prefix in settings.ROUTE_FORWARDING.keys() 
-                         if request.url.path.startswith(prefix))
-        key = f"rate_limit:{path_prefix}:{client_ip}"
-
-        is_limited, retry_after = await rate_limiter.is_rate_limited(key)
-        
-        if is_limited:
-            headers = {
-                "Retry-After": str(retry_after),
-                "X-RateLimit-Limit": str(rate_limit),
-                "X-RateLimit-Reset": str(retry_after)
-            }
-            raise HTTPException(
-                status_code=429,
-                detail="Too many requests",
-                headers=headers
-            )
+        # Only check rate limit if a limit is set
+        # if rate_limit:
+        #     await check_rate_limit(request, target_url, rate_limit, logger)
 
         # Forward the request to the target service
-        return await forward_request(request, target_url) 
+        return await forward_request(request, target_url, logger)

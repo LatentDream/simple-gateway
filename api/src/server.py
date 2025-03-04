@@ -7,7 +7,7 @@ from src.services.logging.middleware import setup_error_reporting
 from src.services.storage.Redis import close_redis, init_redis
 from src.services.logging.logging import setup_logging
 from src.services.cors.middleware import setup_cors_middleware
-from src.services.rate_limiter.middleware import setup_rate_limiter
+from src.services.rate_limiter.middleware import setup_gateway
 from src.api.routes.admin import router as admin_router
 from .settings import Settings, get_settings
 
@@ -56,8 +56,8 @@ def create_server(settings: Settings) -> FastAPI:
     # Adming route
     app.include_router(admin_router)
 
-    # Gateway with limter
-    setup_rate_limiter(app, settings, logger)
+    # Gateway with rate limiting
+    setup_gateway(app, settings, logger)
     
     # Setup middleware
     setup_auth_middleware(app, settings, logger)
