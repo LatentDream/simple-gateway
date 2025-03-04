@@ -106,10 +106,6 @@ async def verify_auth(
         headers={"WWW-Authenticate": "Basic"},
     )
 
-def require_auth(func):
-    """Dependency to require authentication for a route."""
-    return Security(verify_auth, scopes=[])
-
 def setup_auth_middleware(app: FastAPI, settings: Settings):
     """Setup authentication middleware for the application."""
     @app.middleware("http")

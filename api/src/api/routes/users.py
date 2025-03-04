@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from src.services.auth.middleware import protected_route, verify_basic_auth, require_auth
+from src.services.auth.middleware import protected_route, verify_basic_auth
 from src.services.logging.logging import get_logger
 from src.settings import get_settings
 import base64
@@ -23,7 +24,11 @@ async def login(
         auth_header = f"Basic {auth_bytes}"
         
         if not verify_basic_auth(auth_header, settings):
-            raise HTTPException(status_code=401, detail="Invalid credentials")
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Invalid credentials"}
+            )
+
         
         # Create session token
         timestamp = str(datetime.utcnow().timestamp())
@@ -48,7 +53,6 @@ async def login(
 @protected_route()
 async def logout(
     response: Response,
-    _: bool = Depends(require_auth),
     logger = Depends(get_logger)
 ):
     try:
@@ -61,7 +65,6 @@ async def logout(
 @router.get("/me")
 @protected_route()
 async def me(
-    _: bool = Depends(require_auth),
     logger = Depends(get_logger)
 ):
     try:
