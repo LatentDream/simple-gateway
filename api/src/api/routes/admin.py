@@ -37,7 +37,7 @@ async def login(
         auth_bytes = base64.b64encode(auth_str.encode()).decode()
         auth_header = f"Basic {auth_bytes}"
         
-        if not verify_basic_auth(auth_header, settings):
+        if not verify_basic_auth(auth_header, settings, logger):
             return JSONResponse(
                 status_code=401,
                 content={"detail": "Invalid credentials"}
