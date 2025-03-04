@@ -37,35 +37,53 @@ class RateLimiter:
 
         return False, None
 
-async def check_rate_limit(request: Request, target_url: str, rate_limit: int, logger: Logger) -> None:
+async def check_rate_limit(request: Request, target_url: str, rate_limit: int, logger: Logger, settings: Settings) -> None:
     """Check rate limit for the request. Raises HTTPException if rate limited."""
+    logger.debug(f"Starting rate limit check for target_url: {target_url}, rate_limit: {rate_limit}")
+    
     redis = request.app.state.redis
     if not redis:
         # If Redis is not available, allow the request but log a warning
         logger.warning("Redis not available, rate limiting disabled")
         return
 
+    logger.debug("Redis connection available")
     rate_limiter = RateLimiter(redis, rate_limit)
     
     # Use IP address and path prefix as the rate limit key
     client_ip = request.client.host if request.client else "unknown"
-    path_prefix = next(prefix for prefix in settings.ROUTE_FORWARDING.keys() 
-                     if request.url.path.startswith(prefix))
-    key = f"rate_limit:{path_prefix}:{client_ip}"
-
-    is_limited, retry_after = await rate_limiter.is_rate_limited(key)
+    logger.debug(f"Client IP: {client_ip}")
     
-    if is_limited:
-        headers = {
-            "Retry-After": str(retry_after),
-            "X-RateLimit-Limit": str(rate_limit),
-            "X-RateLimit-Reset": str(retry_after)
-        }
-        raise HTTPException(
-            status_code=429,
-            detail="Too many requests",
-            headers=headers
-        )
+    try:
+        path_prefix = next(prefix for prefix in settings.ROUTE_FORWARDING.keys() 
+                        if request.url.path.startswith(prefix))
+        logger.debug(f"Found path_prefix: {path_prefix}")
+    except StopIteration:
+        logger.error(f"No matching path prefix found for path: {request.url.path}")
+        raise HTTPException(status_code=500, detail="Invalid route configuration")
+
+    key = f"rate_limit:{path_prefix}:{client_ip}"
+    logger.debug(f"Generated rate limit key: {key}")
+
+    try:
+        is_limited, retry_after = await rate_limiter.is_rate_limited(key)
+        logger.debug(f"Rate limit check result - is_limited: {is_limited}, retry_after: {retry_after}")
+    
+        if is_limited:
+            headers = {
+                "Retry-After": str(retry_after),
+                "X-RateLimit-Limit": str(rate_limit),
+                "X-RateLimit-Reset": str(retry_after)
+            }
+            logger.debug(f"Request rate limited. Headers: {headers}")
+            raise HTTPException(
+                status_code=429,
+                detail="Too many requests",
+                headers=headers
+            )
+    except Exception as e:
+        logger.error(f"Error during rate limiting check: {str(e)}")
+        raise HTTPException(status_code=500, detail="Rate limiting error")
 
 def setup_gateway(app: FastAPI, settings: Settings, logger: Logger):
     """Setup gateway middleware with rate limiting for configured routes"""
@@ -87,8 +105,8 @@ def setup_gateway(app: FastAPI, settings: Settings, logger: Logger):
         target_url, rate_limit = route_config
 
         # Only check rate limit if a limit is set
-        # if rate_limit:
-        #     await check_rate_limit(request, target_url, rate_limit, logger)
+        if rate_limit:
+            await check_rate_limit(request, target_url, rate_limit, logger, settings)
 
         # Forward the request to the target service
         return await forward_request(request, target_url, logger)
