@@ -33,7 +33,6 @@ const CredentialsLogin: React.FC<CredentialsLoginProps> = ({ onSuccess }) => {
         try {
             setIsLoading(true);
             const user = await login(data);
-            console.log("User: ", user);
             if (user) {
                 onSuccess(user);
             }
