@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from redis.asyncio import Redis
 from src.services.auth.middleware import protected_route, verify_basic_auth
 from src.services.logging.logging import get_logger
+from src.services.storage.Redis import get_redis
 from src.settings import Settings, get_settings
 import base64
 from datetime import datetime
@@ -116,4 +118,28 @@ async def get_routes(
         return RouteForwardingResponse(routes=routes)
     except Exception as e:
         logger.error(f"Error getting route configuration: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/clear")
+@protected_route()
+async def clear_cache(
+    settings: Settings = Depends(get_settings),
+    logger = Depends(get_logger),
+    redis: Redis | None = Depends(get_redis)
+):
+    """Clear the Redis database"""
+    try:
+        if redis:
+            await redis.flushdb()
+            logger.info("Successfully cleared all keys from Redis database")
+            return {"status": "success", "message": "Redis database flushed"}
+        else:
+            logger.warning("Redis not available, unable to clear cache")
+            raise HTTPException(
+                status_code=503,
+                detail="Service Unavailable: Redis connection not available"
+            )
+    except Exception as e:
+        logger.error(f"Error clearing Redis database: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
