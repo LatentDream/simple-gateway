@@ -3,12 +3,26 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from src.services.auth.middleware import protected_route, verify_basic_auth
 from src.services.logging.logging import get_logger
-from src.settings import get_settings
+from src.settings import Settings, get_settings
 import base64
 from datetime import datetime
 
 router = APIRouter(prefix="/admin")
 security = HTTPBasic()
+
+
+@router.get("/health_check")
+async def health_check(settings: Settings = Depends(get_settings)):
+    route_config = {
+        path: {"rate_limit": config["rate_limit"]} 
+        for path, config in settings.ROUTE_FORWARDING.items()
+    }
+    return {
+        "status": "ok",
+        "profile": settings.PROFILE,
+        "version": settings.VERSION,
+        "routes": route_config
+    }
 
 @router.post("/login")
 async def login(

@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     
     # Route forwarding configuration
     # Format: {"route_prefix": {"target_url": "http://target-service", "rate_limit": 60}}
-    ROUTE_FORWARDING: Dict[str, Dict[str, str | int]] = {
+    ROUTE_FORWARDING: dict[str, dict[str, str | int]] = {
         "/api/service1": {"target_url": "http://localhost:8081", "rate_limit": 60},
         "/api/service2": {"target_url": "http://localhost:8082", "rate_limit": 30}
     }

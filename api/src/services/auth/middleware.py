@@ -1,17 +1,14 @@
-from fastapi import FastAPI, Request, HTTPException, Depends, Security
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.responses import JSONResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.security import HTTPBasic
 from fastapi.routing import APIRoute
 import secrets
 import base64
 from datetime import datetime
+from src.services.logging.logging import get_logger
 from src.settings import Settings, get_settings
-from functools import wraps
 import logging
 from starlette.routing import Match
-from typing import Optional
-
-logger = logging.getLogger(__name__)
 
 security = HTTPBasic()
 
@@ -36,7 +33,7 @@ def is_protected_route(route_handler) -> bool:
     
     return is_protected
 
-def verify_session_token(token: str, settings: Settings) -> bool:
+def verify_session_token(token: str, settings: Settings, logger: logging.Logger) -> bool:
     """Verify the session token."""
     try:
         decoded = base64.b64decode(token).decode("utf-8")
@@ -53,13 +50,13 @@ def verify_session_token(token: str, settings: Settings) -> bool:
         current_time = datetime.utcnow().timestamp()
         is_token_valid = (current_time - token_time) < 3600
         
-        logger.debug(f"Session token verification - Username valid: {is_correct_username}, Token valid: {is_token_valid}")
+        logger.debug(f"Session token verification - Username valid: {is_correct_username}")
         return is_correct_username and is_token_valid
     except Exception as e:
         logger.error(f"Error verifying session token: {str(e)}")
         return False
 
-def verify_basic_auth(auth_header: str, settings: Settings) -> bool:
+def verify_basic_auth(auth_header: str, settings: Settings, logger: logging.Logger) -> bool:
     """Verify Basic Auth credentials."""
     try:
         auth_type, credentials = auth_header.split(" ", 1)
@@ -87,17 +84,18 @@ def verify_basic_auth(auth_header: str, settings: Settings) -> bool:
 
 async def verify_auth(
     request: Request,
-    settings: Settings = Depends(get_settings)
+    settings: Settings = Depends(get_settings),
+    logger: logging.Logger = Depends(get_logger)
 ) -> bool:
     """Verify authentication using either cookie or basic auth."""
     # First try cookie authentication
     session_cookie = request.cookies.get("session")
-    if session_cookie and verify_session_token(session_cookie, settings):
+    if session_cookie and verify_session_token(session_cookie, settings, logger):
         return True
 
     # Then try Basic Auth
     auth_header = request.headers.get("Authorization")
-    if auth_header and verify_basic_auth(auth_header, settings):
+    if auth_header and verify_basic_auth(auth_header, settings, logger):
         return True
 
     raise HTTPException(
@@ -106,7 +104,7 @@ async def verify_auth(
         headers={"WWW-Authenticate": "Basic"},
     )
 
-def setup_auth_middleware(app: FastAPI, settings: Settings):
+def setup_auth_middleware(app: FastAPI, settings: Settings, logger: logging.Logger):
     """Setup authentication middleware for the application."""
     @app.middleware("http")
     async def auth_middleware(request: Request, call_next):
@@ -142,7 +140,7 @@ def setup_auth_middleware(app: FastAPI, settings: Settings):
             session_cookie = request.cookies.get("session")
             if session_cookie:
                 logger.debug("Found session cookie, verifying...")
-                if verify_session_token(session_cookie, settings):
+                if verify_session_token(session_cookie, settings, logger):
                     logger.debug("Session cookie verification successful")
                     return await call_next(request)
                 logger.debug("Session cookie verification failed")
@@ -151,7 +149,7 @@ def setup_auth_middleware(app: FastAPI, settings: Settings):
             auth_header = request.headers.get("Authorization")
             if auth_header:
                 logger.debug("Found Authorization header, verifying...")
-                if verify_basic_auth(auth_header, settings):
+                if verify_basic_auth(auth_header, settings, logger):
                     logger.debug("Basic auth verification successful")
                     return await call_next(request)
                 logger.debug("Basic auth verification failed")
