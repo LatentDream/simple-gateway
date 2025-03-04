@@ -5,12 +5,9 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import icon from '@/assets/icon.png';
-import { useAuth } from "@/context/AuthContext"
-import { capitalize } from "lodash"
 
 
 export function NavHeader() {
-  const { user } = useAuth();
 
   return (
     <SidebarMenu>
@@ -24,9 +21,8 @@ export function NavHeader() {
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-semibold">
-              Ploomber Debugger
+              Admin Dashboard
             </span>
-            <span className="truncate text-xs">{capitalize(user?.type)}</span>
           </div>
         </SidebarMenuButton>
       </SidebarMenuItem>

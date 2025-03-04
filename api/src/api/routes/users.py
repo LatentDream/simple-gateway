@@ -43,8 +43,9 @@ async def login(
             samesite="lax",
             max_age=3600  # 1 hour
         )
-        
-        return {"message": "Successfully logged in"}
+        return {
+            "name": "admin"
+        }
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -69,7 +70,7 @@ async def me(
 ):
     try:
         return {
-            "username": "user"  # Replace with actual user info
+            "name": "admin"
         }
     except AttributeError:
         raise HTTPException(status_code=401, detail="Not authenticated")

@@ -1,5 +1,4 @@
 import { toast } from 'sonner';
-import { LOCAL_STORAGE_KEY_SESSION_TOKEN } from "@/context/AuthContext";
 import { API_BASE_URL } from '@/settings';
 
 interface RequestOptions extends RequestInit {
@@ -22,14 +21,6 @@ export function prepareHeaders(options: RequestOptions): Headers {
     const headers = new Headers(options.headers || {
         'Content-Type': 'application/json',
     });
-
-    if (!options.skipAuth) {
-        const token = localStorage.getItem(LOCAL_STORAGE_KEY_SESSION_TOKEN);
-        if (token) {
-            headers.append('Authorization', `Bearer ${token}`);
-        }
-    }
-
     return headers;
 }
 

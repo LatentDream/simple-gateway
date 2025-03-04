@@ -1,7 +1,6 @@
 "use client"
 
 import ArticleIcon from "@mui/icons-material/Article";
-import PersonIcon from "@mui/icons-material/Person";
 import LogoutIcon from "@mui/icons-material/Logout";
 import HelpCenterIcon from "@mui/icons-material/HelpCenter";
 import {
@@ -54,12 +53,12 @@ export function NavUser() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-full">
-                <AvatarImage src={user?.avatar_url} alt={user?.email} />
-                <AvatarFallback className="bg-secondary">{user?.email.charAt(0).toUpperCase()}</AvatarFallback>
+                <AvatarImage src={user?.avatar_url} alt={user?.name} />
+                <AvatarFallback className="bg-secondary">{user?.name.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">{user?.name}</span>
-                <span className="truncate text-xs">{user?.email}</span>
+                <span className="truncate text-xs">{user?.name}</span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
             </SidebarMenuButton>
@@ -73,12 +72,12 @@ export function NavUser() {
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-full">
-                  <AvatarImage src={user?.avatar_url} alt={user?.email} />
-                  <AvatarFallback className="bg-secondary">{user?.email.charAt(0).toUpperCase()}</AvatarFallback>
+                  <AvatarImage src={user?.avatar_url} alt={user?.name} />
+                  <AvatarFallback className="bg-secondary">{user?.name.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">{user?.name}</span>
-                  <span className="truncate text-xs">{user?.email}</span>
+                  <span className="truncate text-xs">{user?.name}</span>
                 </div>
               </div>
             </DropdownMenuLabel>

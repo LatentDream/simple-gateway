@@ -1,12 +1,15 @@
 import { z } from 'zod';
 
 export const AuthenticatedUserSchema = z.object({
-    user_id: z.string(),
-    email: z.string().email(),
-    avatar_url: z.string().url(),
+    avatar_url: z.string().url().optional(),
     name: z.string(),
-    type: z.enum(['pro', 'teams', 'community', 'enterprise']),
-    permissions: z.array(z.string()),
 });
 
 export type AuthenticatedUser = z.infer<typeof AuthenticatedUserSchema>;
+
+export const LoginCredentialsSchema = z.object({
+    username: z.string().min(1, "Username is required"),
+    password: z.string().min(1, "Password is required"),
+});
+
+export type LoginCredentials = z.infer<typeof LoginCredentialsSchema>;

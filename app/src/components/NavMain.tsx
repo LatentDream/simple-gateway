@@ -29,18 +29,5 @@ export function NavMain() {
     }
   }
 
-  return (
-    <SidebarGroup>
-      <SidebarGroupLabel className="flex">
-        Applications
-        <div className="flex-grow" />
-        <SyncIcon
-          onClick={() => console.log("todo")}
-          className="cursor-pointer hover:transition-transform hover:duration-300 ease-in-out hover:-rotate-12 active:-rotate-180"
-        />
-      </SidebarGroupLabel>
-      <SidebarMenu>
-      </SidebarMenu>
-    </SidebarGroup>
-  )
+  return (<></>)
 }

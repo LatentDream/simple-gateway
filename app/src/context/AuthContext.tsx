@@ -1,67 +1,46 @@
-import * as api from '@/services/api';
-import { AuthenticatedUser } from '@/types/auth';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { toast } from 'sonner';
-
-export type ApiToken = string;
+import { AuthenticatedUser } from '@/types/auth';
+import { me } from '@/services/api';
 
 interface AuthContextType {
-    user: AuthenticatedUser | null
-    isLoading: boolean;
-    login: (apiToken: ApiToken | null) => void;
+    user: AuthenticatedUser | null;
+    isLoading: boolean
+    login: (user: AuthenticatedUser) => void;
     logout: () => void;
 }
 
-export const LOCAL_STORAGE_KEY_SESSION_TOKEN = "USER_TOKEN_LOC";
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [isLoading, setIsLoading] = useState(true);
-    const [user, setUser] = useState<AuthenticatedUser | null>(null)
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [user, setUser] = useState<AuthenticatedUser | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
 
     useEffect(() => {
+        setIsLoading(true)
         const checkAuth = async () => {
-            await login(null, true)
+            const userData = await me();
+            if (userData) {
+                setUser(userData);
+            }
+            setIsLoading(false)
         };
         checkAuth();
     }, []);
 
-    const login = async (apiToken: ApiToken | null, skipErrorToast: boolean = false) => {
-        setIsLoading(true);
-        try {
-            if (apiToken !== null) {
-                localStorage.setItem(LOCAL_STORAGE_KEY_SESSION_TOKEN, apiToken);
-            }
-            const user = await api.me(skipErrorToast)
-            if (user === null) {
-                throw Error;
-            }
-            setUser(user);
-        } catch {
-        } finally {
-            setIsLoading(false);
-        }
+    const login = (userData: AuthenticatedUser) => {
+        setUser(userData);
     };
 
-    const logout = async () => {
-        const token = localStorage.getItem(LOCAL_STORAGE_KEY_SESSION_TOKEN);
-
-        if (!token) {
-            toast.error("Please logout from the Cloud platform");
-            return;
-        }
-
-        localStorage.removeItem(LOCAL_STORAGE_KEY_SESSION_TOKEN);
-        window.location.href = '/login';
+    const logout = () => {
+        setUser(null);
     };
 
     return (
-        <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+        <AuthContext.Provider value={{ user, login, logout, isLoading }}>
             {children}
         </AuthContext.Provider>
     );
-}
+};
 
 export const useAuth = () => {
     const context = useContext(AuthContext);

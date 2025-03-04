@@ -13,7 +13,7 @@ export function NavAction() {
       <SidebarMenuItem key="new">
         <SidebarMenuButton onClick={() => console.log("todo")}>
           <DashboardCustomizeRoundedIcon />
-          <span>SOMETHING</span>
+          <span>Overview</span>
         </SidebarMenuButton>
       </SidebarMenuItem>
     </SidebarMenu>

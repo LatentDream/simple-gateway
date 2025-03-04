@@ -1,15 +1,11 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ApiToken, useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
-import TokenLogin from './components/TokenLogin';
+import CredentialsLogin from './components/CredentialsLogin';
 import { useEffect } from 'react';
-
-export type LoginProps = {
-    onSuccess: (token: ApiToken) => void
-}
+import { AuthenticatedUser } from '@/types/auth';
 
 const Login: React.FC = () => {
-
     const { login, user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
@@ -23,8 +19,8 @@ const Login: React.FC = () => {
         }
     }, [user, navigate, from]);
 
-    const onSuccess = (token: ApiToken | null) => {
-        login(token);
+    const onSuccess = (user: AuthenticatedUser) => {
+        login(user);
         navigate(from, { replace: true });
     }
 
@@ -33,11 +29,11 @@ const Login: React.FC = () => {
             <Card className="max-w-md w-full mx-4 p-6 rounded-lg shadow-lg flex flex-col items-center justify-center border-2">
                 <CardTitle className='text-center mb-4'>
                     <div className="flex flex-col items-center">
-                        Ploomber - Debugger
+                        Rate Limiter - Admin Dashboard
                     </div>
                 </CardTitle>
                 <CardContent className='pb-4 w-full'>
-                    <TokenLogin onSuccess={onSuccess} />
+                    <CredentialsLogin onSuccess={onSuccess} />
                 </CardContent>
             </Card>
         </div>

@@ -1,7 +1,5 @@
-import { AuthenticatedUser } from "@/types/auth";
+import { AuthenticatedUser, LoginCredentials } from "@/types/auth";
 import { api } from "./request";
-import { Project, ProjectsResponse } from "@/types/cloud";
-import { LogsResponse } from "@/types/logs";
 
 export async function health_check(): Promise<string> {
     try {
@@ -21,6 +19,16 @@ export async function me(skipErrorToast: boolean = false): Promise<Authenticated
         return data;
     } catch (error) {
         console.error('Failed to fetch user:', error);
+        return null;
+    }
+}
+
+export async function login(credentials: LoginCredentials): Promise<AuthenticatedUser | null> {
+    try {
+        const data = await api.post<AuthenticatedUser>("users/login", credentials);
+        return data;
+    } catch (error) {
+        console.error('Login failed:', error);
         return null;
     }
 }
