@@ -17,22 +17,23 @@ class RateLimiter:
         Check if the request should be rate limited
         Returns (is_limited, retry_after)
         """
-        current = int(time.time())
-        window_start = current - self.window
+        current = time.time()
+        current_ms = int(current * 1000000)  # Convert to microseconds for uniqueness
+        window_start = int(current - self.window)
 
         async with self.redis.pipeline(transaction=True) as pipe:
             # Remove old requests
             await pipe.zremrangebyscore(key, 0, window_start)
-            # Add current request
-            await pipe.zadd(key, {str(current): current})
+            # Add current request with microsecond precision to ensure uniqueness
+            await pipe.zadd(key, {f"{current_ms}": current})
             # Get count of requests in window
-            await pipe.zcount(key, window_start, current)
+            await pipe.zcount(key, window_start, int(current))
             # Set key expiration
             await pipe.expire(key, self.window)
             _, _, count, _ = await pipe.execute()
 
         if count > self.requests_per_minute:
-            retry_after = self.window - (current - window_start)
+            retry_after = self.window - (int(current) - window_start)
             return True, retry_after
 
         return False, None
