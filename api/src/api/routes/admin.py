@@ -7,7 +7,7 @@ from src.settings import get_settings
 import base64
 from datetime import datetime
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(prefix="/admin")
 security = HTTPBasic()
 
 @router.post("/login")

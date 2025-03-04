@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Literal
+from typing import Literal, Dict
 from fastapi import Request
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -10,6 +10,11 @@ class Profile(str, Enum):
     PROD = "PROD"
 
 type SupportEngine = Literal['sqlite', 'postgresql']
+
+class RouteConfig:
+    def __init__(self, target_url: str, rate_limit: int = 60):
+        self.target_url = target_url
+        self.rate_limit = rate_limit
 
 class Settings(BaseSettings):
     """
@@ -22,6 +27,13 @@ class Settings(BaseSettings):
     # Authentication Settings
     API_USERNAME: str = "admin"
     API_PASSWORD: str = "password123"  # In production, use a strong password and store securely
+    
+    # Route forwarding configuration
+    # Format: {"route_prefix": {"target_url": "http://target-service", "rate_limit": 60}}
+    ROUTE_FORWARDING: Dict[str, Dict[str, str | int]] = {
+        "/api/service1": {"target_url": "http://localhost:8081", "rate_limit": 60},
+        "/api/service2": {"target_url": "http://localhost:8082", "rate_limit": 30}
+    }
     
     ALLOWED_ORIGINS: list[str] = [
         "http://localhost:5173",    # Vite default dev server
@@ -76,6 +88,12 @@ class Settings(BaseSettings):
         if self.PROFILE == Profile.TEST:
             pass
 
+    def get_route_config(self, path: str) -> tuple[str, int] | None:
+        """Get the target URL and rate limit for a given path"""
+        for prefix, config in self.ROUTE_FORWARDING.items():
+            if path.startswith(prefix):
+                return config["target_url"], int(config["rate_limit"])
+        return None
 
     # Allow environment variable overrides
     model_config = SettingsConfigDict(
