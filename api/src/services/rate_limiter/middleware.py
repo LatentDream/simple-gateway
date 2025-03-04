@@ -67,6 +67,13 @@ async def check_rate_limit(request: Request, target_url: str, rate_limit: int, l
 
     try:
         is_limited, retry_after = await rate_limiter.is_rate_limited(key)
+        
+        # Get current request count from Redis
+        current = int(time.time())
+        window_start = current - rate_limiter.window
+        request_count = await redis.zcount(key, window_start, current)
+        
+        logger.info(f"Rate limit status for {client_ip}: {request_count}/{rate_limit} requests per minute")
         logger.debug(f"Rate limit check result - is_limited: {is_limited}, retry_after: {retry_after}")
     
         if is_limited:
