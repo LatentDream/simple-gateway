@@ -30,19 +30,19 @@ class RateLimiter:
         async with self.redis.pipeline(transaction=True) as pipe:
             # Remove old requests
             await pipe.zremrangebyscore(key, 0, window_start)
-            # Get count of requests in window before adding current request
-            await pipe.zcount(key, window_start, int(current))
             # Add current request with microsecond precision to ensure uniqueness
             await pipe.zadd(key, {f"{current_ms}": current})
+            # Get count of all requests in window AFTER adding current request
+            await pipe.zcount(key, window_start, '+inf')  # Use '+inf' to count all requests
             # Set key expiration
             await pipe.expire(key, self.window)
-            _, count, _, _ = await pipe.execute()
+            _, _, count, _ = await pipe.execute()
 
             if self.logger:
                 self.logger.debug(f"Request count in window: {count}/{self.requests_per_minute}")
 
-        # Check if adding this request would exceed the limit
-        if count >= self.requests_per_minute:
+        # Check if the current count exceeds the limit
+        if count > self.requests_per_minute:
             retry_after = self.window - (int(current) - window_start)
             if self.logger:
                 self.logger.debug(f"Rate limit exceeded. Retry after: {retry_after}s")
@@ -88,8 +88,7 @@ async def check_rate_limit(request: Request, target_url: str, rate_limit: int, l
         window_start = current - rate_limiter.window
         request_count = await redis.zcount(key, window_start, current)
         
-        logger.info(f"Rate limit status for {client_ip}: {request_count}/{rate_limit} requests per minute")
-        logger.debug(f"Rate limit check result - is_limited: {is_limited}, retry_after: {retry_after}")
+        logger.info(f"Rate limit check result - is_limited: {is_limited}, retry_after: {retry_after}")
     
         if is_limited:
             headers = {
