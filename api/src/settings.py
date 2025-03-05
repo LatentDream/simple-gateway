@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     # For error reporting
     DISCORD_WEBHOOK_URL: str = ""
 
+    # Rate limiting settings
+    RATE_LIMIT_WINDOW_SECONDS: int = 60
+
     # Database general settings
     DB_ENGINE: SupportEngine = "sqlite"     # Which DB -> SQLite for now
     DB_ECHO: bool = True                    # True to log all SQL queries

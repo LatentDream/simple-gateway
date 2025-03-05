@@ -11,10 +11,10 @@ from fastapi.responses import JSONResponse
 
 @final
 class RateLimiter:
-    def __init__(self, redis: Redis, requests_per_minute: int = 60, logger: Logger | None = None):
+    def __init__(self, redis: Redis, requests_per_minute: int = 60, logger: Logger | None = None, settings: Settings | None = None):
         self.redis = redis
         self.requests_per_minute = requests_per_minute
-        self.window = 60  # 1 minute window
+        self.window = settings.RATE_LIMIT_WINDOW_SECONDS if settings else 60  # Use settings if provided
         self.logger = logger
 
     async def is_rate_limited(self, key: str) -> tuple[bool, int | None]:
@@ -72,7 +72,7 @@ async def check_rate_limit(
         return
 
     logger.debug("Redis connection available")
-    rate_limiter = RateLimiter(redis, rate_limit, logger)
+    rate_limiter = RateLimiter(redis, rate_limit, logger, settings)
     
     # Use IP address and path prefix as the rate limit key
     client_ip = request.client.host if request.client else "unknown"
@@ -128,12 +128,18 @@ class RateLimitRule(Rule):
         request_path = request.url.path
         route_config = await get_route_config(request_path)
         if not route_config:
+            logger.debug(f"No config for {request_path} -> Skipping")
             return None
             
         target_url, rate_limit, _ = route_config
         if not rate_limit:
             return None
             
+        redis: Redis = request.app.state.redis
+        if not redis:
+            return None
+
+        rate_limiter = RateLimiter(redis, rate_limit, logger, settings)
         response = await check_rate_limit(request, target_url, rate_limit, logger, settings)
         return response
         
