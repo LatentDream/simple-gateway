@@ -53,7 +53,27 @@ class GatewayConfig(Base):
         rate_limit: int = 60,
         url_rewrite: dict[str, str] | None = None
     ):
-        """Create a new gateway configuration"""
+        """Create a new gateway configuration or reactivate a soft deleted one"""
+        # Check for existing config including soft deleted ones
+        query = select(cls).where(cls.route_prefix == route_prefix)
+        result = await db.execute(query)
+        existing_config = result.scalar_one_or_none()
+
+        if existing_config:
+            if not existing_config.is_active:
+                # Reactivate and update the soft deleted config
+                existing_config.target_url = target_url
+                existing_config.rate_limit = rate_limit
+                existing_config.url_rewrite = url_rewrite or {}
+                existing_config.is_active = True
+                await db.commit()
+                await db.refresh(existing_config)
+                return existing_config
+            else:
+                # If route exists and is active, don't allow creation
+                return None
+        
+        # Create new config if none exists
         config = cls(
             route_prefix=route_prefix,
             target_url=target_url,
