@@ -44,6 +44,16 @@ export async function getRoutes(): Promise<RouteForwardingResponse | null> {
     }
 }
 
+export async function updateRoutes(routes: RouteForwardingResponse): Promise<RouteForwardingResponse | null> {
+    try {
+        const data = await api.put<RouteForwardingResponse>("admin/routes", routes);
+        return data;
+    } catch (error) {
+        console.error('Failed to update routes:', error);
+        return null;
+    }
+}
+
 export async function getMetrics(): Promise<RequestTrackingResponse | null> {
     try {
         const data = await api.get<RequestTrackingResponse>("admin/metrics");

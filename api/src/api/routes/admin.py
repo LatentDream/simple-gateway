@@ -10,7 +10,7 @@ from src.services.storage.Redis import get_redis
 from src.settings import Settings, get_settings
 import base64
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import Dict
 
 from src.types import request_tracking
@@ -21,8 +21,24 @@ class RouteForwardingConfig(BaseModel):
     target_url: str
     rate_limit: int
 
+    @validator('rate_limit')
+    def validate_rate_limit(cls, v):
+        if v < 0:
+            raise ValueError('rate_limit must be non-negative')
+        return v
+
 class RouteForwardingResponse(BaseModel):
     routes: Dict[str, RouteForwardingConfig]
+
+class UpdateRouteForwardingRequest(BaseModel):
+    routes: Dict[str, RouteForwardingConfig]
+
+    @validator('routes')
+    def validate_routes(cls, v):
+        for path, config in v.items():
+            if not path.startswith('/'):
+                raise ValueError(f'Route path must start with /: {path}')
+        return v
 
 router = APIRouter(prefix="/admin")
 security = HTTPBasic()
@@ -164,3 +180,37 @@ async def get_metrics(logger: Logger = Depends(get_logger)):
     except Exception as e:
         logger.error(f"Unexpected error retrieving metrics: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to retrieve metrics: {str(e)}")
+
+@router.put("/routes")
+@protected_route()
+async def update_routes(
+    request: UpdateRouteForwardingRequest,
+    settings: Settings = Depends(get_settings),
+    logger: Logger = Depends(get_logger),
+    redis: Redis | None = Depends(get_redis)
+):
+    """Update the route forwarding configuration"""
+    try:
+        # Convert the request model to the format expected by settings
+        new_routes = {
+            path: {
+                "target_url": config.target_url,
+                "rate_limit": config.rate_limit
+            }
+            for path, config in request.routes.items()
+        }
+
+        # Update the settings
+        settings.ROUTE_FORWARDING = new_routes
+
+        # Clear rate limiting cache if Redis is available
+        if redis:
+            # Clear only rate limit keys
+            async for key in redis.scan_iter(match="rate_limit:*"):
+                await redis.delete(key)
+            logger.info("Cleared rate limiting cache after route update")
+
+        return RouteForwardingResponse(routes=request.routes)
+    except Exception as e:
+        logger.error(f"Error updating route configuration: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
