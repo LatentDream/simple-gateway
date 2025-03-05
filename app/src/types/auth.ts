@@ -16,7 +16,8 @@ export type LoginCredentials = z.infer<typeof LoginCredentialsSchema>;
 
 export const RouteForwardingConfigSchema = z.object({
     target_url: z.string(),
-    rate_limit: z.number()
+    rate_limit: z.number(),
+    url_rewrite: z.record(z.string()).default({})
 });
 
 export const RouteForwardingResponseSchema = z.object({

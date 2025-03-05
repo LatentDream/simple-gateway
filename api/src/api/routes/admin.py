@@ -166,7 +166,8 @@ async def update_routes(
         new_routes = {
             path: {
                 "target_url": config.target_url,
-                "rate_limit": config.rate_limit
+                "rate_limit": config.rate_limit,
+                "url_rewrite": config.url_rewrite
             }
             for path, config in request.routes.items()
         }

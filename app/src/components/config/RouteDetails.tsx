@@ -17,6 +17,9 @@ export function RouteDetails({ routePath }: RouteDetailsProps) {
     const [path, setPath] = useState("");
     const [targetUrl, setTargetUrl] = useState("");
     const [rateLimit, setRateLimit] = useState("");
+    const [urlRewrites, setUrlRewrites] = useState<Record<string, string>>({});
+    const [newRewriteKey, setNewRewriteKey] = useState("");
+    const [newRewriteValue, setNewRewriteValue] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const isNewRoute = routePath === "*new*";
 
@@ -26,10 +29,12 @@ export function RouteDetails({ routePath }: RouteDetailsProps) {
             setPath(routePath);
             setTargetUrl(config.target_url);
             setRateLimit(config.rate_limit.toString());
+            setUrlRewrites(config.url_rewrite || {});
         } else if (isNewRoute) {
             setPath("");
             setTargetUrl("");
             setRateLimit("60"); // Default rate limit
+            setUrlRewrites({});
         }
     }, [routePath, routes, isNewRoute]);
 
@@ -53,7 +58,8 @@ export function RouteDetails({ routePath }: RouteDetailsProps) {
             setIsSaving(true);
             await editConfig(path, {
                 target_url: targetUrl,
-                rate_limit: parseInt(rateLimit)
+                rate_limit: parseInt(rateLimit),
+                url_rewrite: urlRewrites
             });
         } catch (error) {
             toast({
@@ -77,6 +83,7 @@ export function RouteDetails({ routePath }: RouteDetailsProps) {
                     <TabsList className="h-12">
                         <TabsTrigger value="general">General</TabsTrigger>
                         <TabsTrigger value="rate-limiting">Rate Limiting</TabsTrigger>
+                        <TabsTrigger value="url-rewrites">URL Rewrites</TabsTrigger>
                         <TabsTrigger value="plugins">Plugins</TabsTrigger>
                     </TabsList>
                 </div>
@@ -122,6 +129,68 @@ export function RouteDetails({ routePath }: RouteDetailsProps) {
                         <TabsContent value="plugins" className="mt-0">
                             <div className="text-center text-muted-foreground py-8">
                                 Plugins configuration coming soon
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="url-rewrites" className="mt-0 space-y-6">
+                            <div className="space-y-4">
+                                <div className="flex gap-4">
+                                    <div className="flex-1 space-y-2">
+                                        <Label htmlFor="rewriteKey">Original Path</Label>
+                                        <Input
+                                            id="rewriteKey"
+                                            value={newRewriteKey}
+                                            onChange={(e) => setNewRewriteKey(e.target.value)}
+                                            placeholder="/original-path"
+                                        />
+                                    </div>
+                                    <div className="flex-1 space-y-2">
+                                        <Label htmlFor="rewriteValue">Rewrite To</Label>
+                                        <Input
+                                            id="rewriteValue"
+                                            value={newRewriteValue}
+                                            onChange={(e) => setNewRewriteValue(e.target.value)}
+                                            placeholder="/new-path"
+                                        />
+                                    </div>
+                                    <div className="pt-8">
+                                        <Button
+                                            onClick={() => {
+                                                if (newRewriteKey && newRewriteValue) {
+                                                    setUrlRewrites(prev => ({
+                                                        ...prev,
+                                                        [newRewriteKey]: newRewriteValue
+                                                    }));
+                                                    setNewRewriteKey("");
+                                                    setNewRewriteValue("");
+                                                }
+                                            }}
+                                        >
+                                            Add Rewrite
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    {Object.entries(urlRewrites).map(([key, value]) => (
+                                        <div key={key} className="flex items-center gap-2 p-2 border rounded">
+                                            <span className="flex-1">{key}</span>
+                                            <span className="text-muted-foreground">→</span>
+                                            <span className="flex-1">{value}</span>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    const newRewrites = { ...urlRewrites };
+                                                    delete newRewrites[key];
+                                                    setUrlRewrites(newRewrites);
+                                                }}
+                                            >
+                                                Remove
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </TabsContent>
                     </div>

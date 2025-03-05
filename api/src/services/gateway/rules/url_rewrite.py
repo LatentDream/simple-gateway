@@ -29,7 +29,7 @@ class UrlRewriteRule(Rule):
                 
         # If path was rewritten, store both versions in request state
         if rewritten_path != original_path:
-            logger.debug(f"Rewriting path: {original_path} -> {rewritten_path}")
+            logger.info(f"Rewriting path: {original_path} -> {rewritten_path}")
             # Store in request state for potential use by other rules
             request.state.original_path = original_path
             request.state.rewritten_path = rewritten_path
