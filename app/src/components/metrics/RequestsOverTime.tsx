@@ -1,6 +1,6 @@
 import { useMetrics } from "@/context/MetricsContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 import { useMemo, useState } from "react";
 import {
     Select,
@@ -12,6 +12,14 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
+import {
+    ChartConfig,
+    ChartContainer,
+    ChartLegend,
+    ChartLegendContent,
+    ChartTooltip,
+    ChartTooltipContent,
+} from "@/components/ui/chart";
 
 type TimeRange = {
     label: string;
@@ -95,6 +103,20 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     }
     return null;
 };
+
+const chartConfig = {
+    requests: {
+        label: "Requests",
+    },
+    route: {
+        label: "By Route",
+        color: "hsl(var(--chart-1))",
+    },
+    status: {
+        label: "By Status",
+        color: "hsl(var(--chart-2))",
+    },
+} satisfies ChartConfig;
 
 export function RequestsOverTime() {
     const { metrics, isLoading, error, refreshMetrics } = useMetrics();
@@ -251,10 +273,12 @@ export function RequestsOverTime() {
 
     return (
         <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
+            <CardHeader className="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
+                <div className="grid flex-1 gap-1 text-center sm:text-left">
                     <CardTitle>Requests Over Time</CardTitle>
-                    <CardDescription>Number of requests per {breakdown}</CardDescription>
+                    <CardDescription>
+                        Number of requests per {breakdown}
+                    </CardDescription>
                 </div>
                 <div className="flex items-center gap-4">
                     <Button
@@ -276,7 +300,6 @@ export function RequestsOverTime() {
                     <Select
                         value={selectedRange.value}
                         onValueChange={(value) => {
-                            console.log('Changing time range to:', value);
                             const range = TIME_RANGES.find(r => r.value === value);
                             if (range) setSelectedRange(range);
                         }}
@@ -294,19 +317,47 @@ export function RequestsOverTime() {
                     </Select>
                 </div>
             </CardHeader>
-            <CardContent className="h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
+            <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+                <ChartContainer
+                    config={chartConfig}
+                    className="aspect-auto h-[350px] w-full"
+                >
                     <AreaChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" />
+                        <defs>
+                            {breakdownKeys.map((key, index) => {
+                                const color = breakdown === 'route'
+                                    ? ROUTE_COLORS[index % ROUTE_COLORS.length]
+                                    : STATUS_COLORS[key] || '#94a3b8';
+                                return (
+                                    <linearGradient key={key} id={`fill${key}`} x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={color} stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor={color} stopOpacity={0.1} />
+                                    </linearGradient>
+                                );
+                            })}
+                        </defs>
+                        <CartesianGrid vertical={false} />
                         <XAxis
                             dataKey="time"
-                            label={{ value: 'Time', position: 'insideBottom', offset: -5 }}
+                            tickLine={false}
+                            axisLine={false}
+                            tickMargin={8}
+                            minTickGap={32}
                         />
                         <YAxis
-                            label={{ value: 'Requests', angle: -90, position: 'insideLeft' }}
+                            tickLine={false}
+                            axisLine={false}
+                            tickMargin={8}
                         />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend />
+                        <ChartTooltip
+                            cursor={false}
+                            content={
+                                <ChartTooltipContent
+                                    labelFormatter={(value) => value}
+                                    indicator="dot"
+                                />
+                            }
+                        />
                         {breakdownKeys.map((key, index) => {
                             const color = breakdown === 'route'
                                 ? ROUTE_COLORS[index % ROUTE_COLORS.length]
@@ -315,18 +366,18 @@ export function RequestsOverTime() {
                             return (
                                 <Area
                                     key={key}
-                                    type="monotone"
+                                    type="stepAfter"
                                     dataKey={key}
                                     stroke={color}
-                                    fill={color}
+                                    fill={`url(#fill${key})`}
                                     stackId="1"
-                                    name={breakdown === 'status' ? `${key} (${getStatusCodeLabel(key)})` : key}
-                                    fillOpacity={0.4}
+                                    name={breakdown === 'status' ? `${key} (${getStatusCodeLabel(key)})  ` : key}
                                 />
                             );
                         })}
+                        <ChartLegend content={<ChartLegendContent />} />
                     </AreaChart>
-                </ResponsiveContainer>
+                </ChartContainer>
             </CardContent>
         </Card>
     );
