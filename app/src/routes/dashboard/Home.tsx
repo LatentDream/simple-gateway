@@ -1,4 +1,5 @@
 import { RoutesConfig } from "@/components/config/RoutesConfig";
+import { RequestsOverTime } from "@/components/metrics/RequestsOverTime";
 
 export default function HomeView() {
     return (
@@ -9,6 +10,8 @@ export default function HomeView() {
                     Manage and monitor your rate limiting configurations
                 </p>
             </div>
+
+            <RequestsOverTime />
             <RoutesConfig />
         </div>
     );
