@@ -54,6 +54,11 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
             setIsLoading(true);
             setError(null);
 
+            // Check if this is a new route and if it already exists
+            if (route !== Object.keys(routes.routes).find(r => r === route) && routes.routes[route]) {
+                throw new Error('A route with this path already exists');
+            }
+
             // Create new routes object with the updated config
             const updatedRoutes: RouteForwardingResponse = {
                 routes: {

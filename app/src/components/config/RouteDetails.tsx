@@ -14,19 +14,26 @@ interface RouteDetailsProps {
 export function RouteDetails({ routePath }: RouteDetailsProps) {
     const { routes, editConfig } = useConfig();
     const { toast } = useToast();
+    const [path, setPath] = useState("");
     const [targetUrl, setTargetUrl] = useState("");
     const [rateLimit, setRateLimit] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+    const isNewRoute = routePath === "*new*";
 
     useEffect(() => {
         if (routePath && routes?.routes[routePath]) {
             const config = routes.routes[routePath];
+            setPath(routePath);
             setTargetUrl(config.target_url);
             setRateLimit(config.rate_limit.toString());
+        } else if (isNewRoute) {
+            setPath("");
+            setTargetUrl("");
+            setRateLimit("60"); // Default rate limit
         }
-    }, [routePath, routes]);
+    }, [routePath, routes, isNewRoute]);
 
-    if (!routePath || !routes?.routes[routePath]) {
+    if (!routePath) {
         return (
             <div className="flex flex-col h-full items-center justify-center text-muted-foreground">
                 <p>Select a route to view and edit its configuration</p>
@@ -35,17 +42,22 @@ export function RouteDetails({ routePath }: RouteDetailsProps) {
     }
 
     const handleSave = async () => {
-        if (!routePath) return;
+        if (!path) {
+            toast({
+                description: "Please enter a route path"
+            });
+            return;
+        }
 
         try {
             setIsSaving(true);
-            await editConfig(routePath, {
+            await editConfig(path, {
                 target_url: targetUrl,
                 rate_limit: parseInt(rateLimit)
             });
         } catch (error) {
             toast({
-                description: "Failed to update route configuration",
+                description: "Failed to update route configuration"
             });
         } finally {
             setIsSaving(false);
@@ -55,7 +67,7 @@ export function RouteDetails({ routePath }: RouteDetailsProps) {
     return (
         <div className="flex flex-col h-full border rounded-md">
             <div className="flex items-center justify-between p-4 border-b">
-                <h3 className="text-lg font-semibold">{routePath}</h3>
+                <h3 className="text-lg font-semibold">{isNewRoute ? "New Route" : routePath}</h3>
                 <Button onClick={handleSave} disabled={isSaving}>
                     {isSaving ? "Saving..." : "Save Changes"}
                 </Button>
@@ -75,8 +87,10 @@ export function RouteDetails({ routePath }: RouteDetailsProps) {
                                 <Label htmlFor="path">Path</Label>
                                 <Input
                                     id="path"
-                                    value={routePath}
-                                    disabled
+                                    value={path}
+                                    onChange={(e) => setPath(e.target.value)}
+                                    disabled={!isNewRoute}
+                                    placeholder="/api/*"
                                 />
                             </div>
 

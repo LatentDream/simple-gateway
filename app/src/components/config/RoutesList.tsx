@@ -2,7 +2,8 @@ import { useConfig } from "@/context/ConfigContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
 interface RoutesListProps {
@@ -13,6 +14,10 @@ interface RoutesListProps {
 export function RoutesList({ selectedRoute, onRouteSelect }: RoutesListProps) {
     const { routes, isLoading, error } = useConfig();
     const [searchQuery, setSearchQuery] = useState("");
+
+    const handleNewRoute = () => {
+        onRouteSelect("*new*");
+    };
 
     const filteredRoutes = routes?.routes ? 
         Object.entries(routes.routes).filter(([path]) => 
@@ -52,14 +57,19 @@ export function RoutesList({ selectedRoute, onRouteSelect }: RoutesListProps) {
     return (
         <div className="flex flex-col h-full border rounded-md">
             <div className="p-4 border-b">
-                <div className="relative">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Search routes..."
-                        className="pl-8"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+                <div className="flex gap-2">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search routes..."
+                            className="pl-8"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                    <Button size="icon" onClick={handleNewRoute}>
+                        <Plus className="h-4 w-4" />
+                    </Button>
                 </div>
             </div>
             <ScrollArea className="flex-1">
