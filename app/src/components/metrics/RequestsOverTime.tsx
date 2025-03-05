@@ -9,6 +9,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 type TimeRange = {
     label: string;
@@ -49,12 +50,31 @@ const TIME_RANGES: TimeRange[] = [
     },
 ];
 
+type BreakdownType = 'route' | 'status';
+
 interface TimeSlotData {
     timestamp: number;
     time: string;
     total: number;
-    [key: string]: number | string; // Allow dynamic route names as keys
+    [key: string]: number | string;
 }
+
+type StatusColors = {
+    [key: string]: string;
+};
+
+const ROUTE_COLORS = ["#2563eb", "#dc2626", "#16a34a", "#ea580c", "#6366f1", "#d946ef"] as const;
+const STATUS_COLORS: StatusColors = {
+    "200": "#16a34a", // Success - Green
+    "201": "#22c55e", // Created - Light Green
+    "400": "#f59e0b", // Bad Request - Yellow
+    "401": "#dc2626", // Unauthorized - Red
+    "403": "#ef4444", // Forbidden - Light Red
+    "404": "#f97316", // Not Found - Orange
+    "429": "#6366f1", // Rate Limited - Indigo
+    "500": "#7c3aed", // Server Error - Purple
+    "503": "#8b5cf6", // Service Unavailable - Light Purple
+};
 
 const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -77,16 +97,26 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export function RequestsOverTime() {
     const { metrics, isLoading, error } = useMetrics();
     const [selectedRange, setSelectedRange] = useState<TimeRange>(TIME_RANGES[0]);
+    const [breakdown, setBreakdown] = useState<BreakdownType>('route');
 
     console.log('Raw metrics data:', metrics);
 
-    // Generate unique colors for each route - moved up to be used in chartData
-    const routes = useMemo(() => {
+    // Generate keys for breakdown (either routes or status codes)
+    const breakdownKeys = useMemo(() => {
         if (!metrics) return [];
-        const routeList = Object.keys(metrics.routes);
-        console.log('Available routes:', routeList);
-        return routeList;
-    }, [metrics]);
+        if (breakdown === 'route') {
+            return Object.keys(metrics.routes);
+        } else {
+            // Collect unique status codes from all routes
+            const statusCodes = new Set<string>();
+            Object.values(metrics.routes).forEach(routeMetrics => {
+                Object.keys(routeMetrics.status_codes).forEach(code => {
+                    statusCodes.add(code);
+                });
+            });
+            return Array.from(statusCodes).sort();
+        }
+    }, [metrics, breakdown]);
 
     const chartData = useMemo(() => {
         if (!metrics) return [];
@@ -109,7 +139,7 @@ export function RequestsOverTime() {
             interval: selectedRange.interval / 1000 + ' seconds'
         });
 
-        // Create time slots based on the interval with initialized route counts
+        // Create time slots based on the interval with initialized counts
         const timeSlots = new Map<number, TimeSlotData>();
         for (let time = startTime; time <= endTime; time += selectedRange.interval) {
             const slot: TimeSlotData = {
@@ -117,9 +147,9 @@ export function RequestsOverTime() {
                 time: selectedRange.formatTime(new Date(time)),
                 total: 0,
             };
-            // Initialize all routes with 0
-            routes.forEach(route => {
-                slot[route] = 0;
+            // Initialize all breakdown keys with 0
+            breakdownKeys.forEach(key => {
+                slot[key] = 0;
             });
             timeSlots.set(time, slot);
         }
@@ -157,7 +187,13 @@ export function RequestsOverTime() {
 
                 const point = timeSlots.get(slotTime)!;
                 point.total += 1;
-                point[path] = (point[path] as number) + 1;
+
+                if (breakdown === 'route') {
+                    point[path] = (point[path] as number) + 1;
+                } else {
+                    const statusCode = request.status_code.toString();
+                    point[statusCode] = (point[statusCode] as number) + 1;
+                }
             });
         });
 
@@ -173,9 +209,11 @@ export function RequestsOverTime() {
         });
 
         return processedData;
-    }, [metrics, selectedRange, routes]);
+    }, [metrics, selectedRange, breakdown, breakdownKeys]);
 
-    const colors = ["#2563eb", "#dc2626", "#16a34a", "#ea580c", "#6366f1", "#d946ef"];
+    const colors = useMemo(() => {
+        return breakdown === 'route' ? ROUTE_COLORS : STATUS_COLORS;
+    }, [breakdown]);
 
     if (isLoading) {
         return (
@@ -214,27 +252,37 @@ export function RequestsOverTime() {
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle>Requests Over Time</CardTitle>
-                    <CardDescription>Number of requests per route over time</CardDescription>
+                    <CardDescription>Number of requests per {breakdown}</CardDescription>
                 </div>
-                <Select
-                    value={selectedRange.value}
-                    onValueChange={(value) => {
-                        console.log('Changing time range to:', value);
-                        const range = TIME_RANGES.find(r => r.value === value);
-                        if (range) setSelectedRange(range);
-                    }}
-                >
-                    <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Select time range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {TIME_RANGES.map((range) => (
-                            <SelectItem key={range.value} value={range.value}>
-                                {range.label}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <div className="flex items-center gap-4">
+                    <ToggleGroup type="single" value={breakdown} onValueChange={(value: BreakdownType) => value && setBreakdown(value)}>
+                        <ToggleGroupItem value="route" aria-label="Show route breakdown">
+                            By Route
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="status" aria-label="Show status code breakdown">
+                            By Status
+                        </ToggleGroupItem>
+                    </ToggleGroup>
+                    <Select
+                        value={selectedRange.value}
+                        onValueChange={(value) => {
+                            console.log('Changing time range to:', value);
+                            const range = TIME_RANGES.find(r => r.value === value);
+                            if (range) setSelectedRange(range);
+                        }}
+                    >
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select time range" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {TIME_RANGES.map((range) => (
+                                <SelectItem key={range.value} value={range.value}>
+                                    {range.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
             </CardHeader>
             <CardContent className="h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -249,21 +297,42 @@ export function RequestsOverTime() {
                         />
                         <Tooltip content={<CustomTooltip />} />
                         <Legend />
-                        {routes.map((route, index) => (
-                            <Area
-                                key={route}
-                                type="monotone"
-                                dataKey={route}
-                                stroke={colors[index % colors.length]}
-                                fill={colors[index % colors.length]}
-                                stackId="1"
-                                name={route}
-                                fillOpacity={0.4}
-                            />
-                        ))}
+                        {breakdownKeys.map((key, index) => {
+                            const color = breakdown === 'route' 
+                                ? ROUTE_COLORS[index % ROUTE_COLORS.length]
+                                : STATUS_COLORS[key] || '#94a3b8';
+                            
+                            return (
+                                <Area
+                                    key={key}
+                                    type="monotone"
+                                    dataKey={key}
+                                    stroke={color}
+                                    fill={color}
+                                    stackId="1"
+                                    name={breakdown === 'status' ? `${key} (${getStatusCodeLabel(key)})` : key}
+                                    fillOpacity={0.4}
+                                />
+                            );
+                        })}
                     </AreaChart>
                 </ResponsiveContainer>
             </CardContent>
         </Card>
     );
+}
+
+function getStatusCodeLabel(code: string): string {
+    const labels: Record<string, string> = {
+        "200": "OK",
+        "201": "Created",
+        "400": "Bad Request",
+        "401": "Unauthorized",
+        "403": "Forbidden",
+        "404": "Not Found",
+        "429": "Rate Limited",
+        "500": "Server Error",
+        "503": "Service Unavailable"
+    };
+    return labels[code] || "Unknown";
 } 
