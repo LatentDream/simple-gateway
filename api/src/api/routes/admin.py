@@ -150,21 +150,17 @@ async def clear_cache(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/metrics")
+@router.get("/metrics", response_model=RequestTrackingResponse)
+@protected_route()
 async def get_metrics(logger: Logger = Depends(get_logger)):
-    if logger:
-        logger.debug("Handling GET request to /admin/metrics endpoint")
+    logger.debug("Handling GET request to /admin/metrics endpoint")
     try:
         tracker = RequestTracker(logger)
         metrics = await tracker.get_metrics()
-        if logger:
-            logger.debug("Successfully retrieved metrics")
         return metrics
     except HTTPException as he:
-        if logger:
-            logger.error(f"HTTP error retrieving metrics: {str(he)}", exc_info=True)
+        logger.error(f"HTTP error retrieving metrics: {str(he)}", exc_info=True)
         raise
     except Exception as e:
-        if logger:
-            logger.error(f"Unexpected error retrieving metrics: {str(e)}", exc_info=True)
+        logger.error(f"Unexpected error retrieving metrics: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to retrieve metrics: {str(e)}")

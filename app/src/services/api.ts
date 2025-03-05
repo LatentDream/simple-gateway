@@ -1,4 +1,5 @@
 import { AuthenticatedUser, LoginCredentials, RouteForwardingResponse } from "@/types/auth";
+import { RequestTrackingResponse } from "@/types/request_tracking";
 import { api } from "./request";
 
 export async function health_check(): Promise<string> {
@@ -39,6 +40,16 @@ export async function getRoutes(): Promise<RouteForwardingResponse | null> {
         return data;
     } catch (error) {
         console.error('Failed to fetch routes:', error);
+        return null;
+    }
+}
+
+export async function getMetrics(): Promise<RequestTrackingResponse | null> {
+    try {
+        const data = await api.get<RequestTrackingResponse>("admin/metrics");
+        return data;
+    } catch (error) {
+        console.error('Failed to fetch metrics:', error);
         return null;
     }
 }
