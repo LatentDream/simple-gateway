@@ -25,6 +25,16 @@ class GatewayConfig(Base):
         return result.scalars().all()
 
     @classmethod
+    async def get_config_by_id(cls, db: AsyncSession, config_id: int):
+        """Retrieve a specific gateway configuration by its ID"""
+        query = select(cls).where(
+            cls.id == config_id,
+            cls.is_active == True
+        )
+        result = await db.execute(query)
+        return result.scalar_one_or_none()
+
+    @classmethod
     async def get_config_by_prefix(cls, db: AsyncSession, prefix: str):
         """Retrieve a specific gateway configuration by its prefix"""
         query = select(cls).where(

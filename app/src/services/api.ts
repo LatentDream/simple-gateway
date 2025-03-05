@@ -64,3 +64,13 @@ export async function getMetrics(): Promise<RequestTrackingResponse | null> {
     }
 }
 
+export async function deleteRoute(routeId: number): Promise<boolean> {
+    try {
+        await api.delete(`admin/routes/${routeId}`);
+        return true;
+    } catch (error) {
+        console.error('Failed to delete route:', error);
+        return false;
+    }
+}
+

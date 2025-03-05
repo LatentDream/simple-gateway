@@ -16,7 +16,7 @@ interface RouteDetailsProps {
 }
 
 export function RouteDetails({ routePath }: RouteDetailsProps) {
-    const { routes, editConfig } = useConfig();
+    const { routes, editConfig, deleteConfig } = useConfig();
     const { toast } = useToast();
     const [path, setPath] = useState("");
     const [targetUrl, setTargetUrl] = useState("");
@@ -25,6 +25,7 @@ export function RouteDetails({ routePath }: RouteDetailsProps) {
     const [newRewriteKey, setNewRewriteKey] = useState("");
     const [newRewriteValue, setNewRewriteValue] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const isNewRoute = routePath === "*new*";
 
     // Store the original state for comparison
@@ -114,6 +115,20 @@ export function RouteDetails({ routePath }: RouteDetailsProps) {
         }
     };
 
+    const handleDelete = async () => {
+        if (!routePath || isNewRoute) return;
+        
+        const routeConfig = routes?.routes[routePath];
+        if (!routeConfig?.id) return;
+
+        try {
+            setIsDeleting(true);
+            await deleteConfig(routeConfig.id);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     return (
         <>
             <div className="flex flex-col h-full">
@@ -130,13 +145,24 @@ export function RouteDetails({ routePath }: RouteDetailsProps) {
                                     <span className="text-sm">You have unsaved changes</span>
                                 </div>
                             )}
-                            <Button 
-                                onClick={handleSave} 
-                                disabled={isSaving || !hasChanges}
-                                variant={hasChanges ? "default" : "secondary"}
-                            >
-                                {isSaving ? "Saving..." : hasChanges ? "Save Changes" : "No Changes"}
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                {!isNewRoute && (
+                                    <Button 
+                                        onClick={handleDelete}
+                                        disabled={isDeleting}
+                                        variant="destructive"
+                                    >
+                                        {isDeleting ? "Deleting..." : "Delete Route"}
+                                    </Button>
+                                )}
+                                <Button 
+                                    onClick={handleSave} 
+                                    disabled={isSaving || !hasChanges}
+                                    variant={hasChanges ? "default" : "secondary"}
+                                >
+                                    {isSaving ? "Saving..." : hasChanges ? "Save Changes" : "No Changes"}
+                                </Button>
+                            </div>
                         </div>
                     </div>
                     <Tabs defaultValue="general" className="flex-1">

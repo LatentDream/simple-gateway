@@ -3,9 +3,10 @@ from pydantic import BaseModel, validator
 
 
 class RouteForwardingConfig(BaseModel):
+    id: int | None = None
     target_url: str
-    rate_limit: int
-    url_rewrite: dict[str, str]
+    rate_limit: int = 60
+    url_rewrite: dict[str, str] = {}
 
     @validator('rate_limit')
     def validate_rate_limit(cls, v):

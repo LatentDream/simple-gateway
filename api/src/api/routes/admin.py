@@ -105,6 +105,7 @@ async def get_routes(
         configs = await GatewayConfig.get_all_active_configs(db)
         routes = {
             config.route_prefix: RouteForwardingConfig(
+                id=config.id,
                 target_url=config.target_url,
                 rate_limit=config.rate_limit,
                 url_rewrite=config.url_rewrite,
@@ -210,4 +211,36 @@ async def update_routes(
         return await get_routes(db, logger)
     except Exception as e:
         logger.error(f"Error updating route configuration: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.delete("/routes/{config_id}")
+@protected_route()
+async def delete_route(
+    config_id: int,
+    db: AsyncSession = Depends(get_db),
+    logger: Logger = Depends(get_logger),
+    redis: Redis | None = Depends(get_redis)
+):
+    """Delete a route configuration from database"""
+    try:
+        # Get the config first to get the route prefix for cache clearing
+        config = await GatewayConfig.get_config_by_id(db, config_id)
+        if not config:
+            raise HTTPException(status_code=404, detail=f"Route with ID {config_id} not found")
+
+        # Delete the route configuration
+        config.is_active = False
+        await db.commit()
+
+        # Clear rate limiting cache for this route if Redis is available
+        if redis:
+            async for key in redis.scan_iter(match=f"rate_limit:{config.route_prefix}*"):
+                await redis.delete(key)
+            logger.info(f"Cleared rate limiting cache for route {config.route_prefix}")
+
+        return {"status": "success", "message": f"Route {config.route_prefix} deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting route configuration: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { RouteForwardingResponse, RouteForwardingConfig } from '@/types/auth';
-import { getRoutes, updateRoutes } from '@/services/api';
+import { getRoutes, updateRoutes, deleteRoute } from '@/services/api';
 import { toast } from 'sonner';
 
 interface ConfigContextType {
@@ -8,6 +8,7 @@ interface ConfigContextType {
     isLoading: boolean;
     error: string | null;
     editConfig: (route: string, config: RouteForwardingConfig) => Promise<void>;
+    deleteConfig: (routeId: number) => Promise<void>;
     refreshRoutes: () => Promise<void>;
     baseUrl: string;
 }
@@ -87,11 +88,36 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         }
     }
 
+    const deleteConfig = async (routeId: number) => {
+        try {
+            setIsLoading(true);
+            setError(null);
+
+            const success = await deleteRoute(routeId);
+            
+            if (success) {
+                // Refresh routes after successful deletion
+                await fetchRoutes();
+                toast.success('Route deleted successfully');
+            } else {
+                throw new Error('Failed to delete route');
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'An error occurred while deleting route';
+            setError(errorMessage);
+            toast.error(errorMessage);
+            console.error('Config delete error:', err);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
     const value = {
         routes,
         isLoading,
         error,
         editConfig,
+        deleteConfig,
         refreshRoutes: fetchRoutes,
         ...config
     };
