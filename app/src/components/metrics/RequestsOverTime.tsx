@@ -65,17 +65,17 @@ type StatusColors = {
     [key: string]: string;
 };
 
-const ROUTE_COLORS = ["#2563eb", "#dc2626", "#16a34a", "#ea580c", "#6366f1", "#d946ef"] as const;
+const ROUTE_COLORS = ["#2563eb", "#854aba", "#6366f1", "#ea580c", "#16a34a", "#d946ef"] as const;
 const STATUS_COLORS: StatusColors = {
     "200": "#16a34a", // Success - Green
     "201": "#22c55e", // Created - Light Green
     "400": "#f59e0b", // Bad Request - Yellow
-    "401": "#dc2626", // Unauthorized - Red
-    "403": "#ef4444", // Forbidden - Light Red
+    "401": "#7c3aed", // Unauthorized - Purple
+    "403": "#8b5cf6", // Forbidden - Light Purple
     "404": "#f97316", // Not Found - Orange
     "429": "#6366f1", // Rate Limited - Indigo
-    "500": "#7c3aed", // Server Error - Purple
-    "503": "#8b5cf6", // Service Unavailable - Light Purple
+    "500": "#dc2626", // Server Error - Purple
+    "503": "#ef4444", // Service Unavailable - Light Purple
 };
 
 const CustomTooltip = ({ active, payload, label }: any) => {
