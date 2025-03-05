@@ -4,16 +4,13 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from redis.asyncio import Redis
 from src.services.auth.middleware import protected_route, verify_basic_auth
+from src.services.gateway.rules import url_rewrite
 from src.services.logging.logging import get_logger
 from src.services.request_tracking.middleware import RequestTracker
 from src.services.storage.Redis import get_redis
 from src.settings import Settings, get_settings
 import base64
 from datetime import datetime
-from pydantic import BaseModel, validator
-from typing import Dict
-
-from src.types import request_tracking
 from src.types.forwarding_rules import RouteForwardingConfig, RouteForwardingResponse, UpdateRouteForwardingRequest
 from src.types.request_tracking import RequestTrackingResponse
 
@@ -23,10 +20,6 @@ security = HTTPBasic()
 
 @router.get("/health_check")
 async def health_check(settings: Settings = Depends(get_settings)):
-    route_config = {
-        path: {"rate_limit": config["rate_limit"]} 
-        for path, config in settings.ROUTE_FORWARDING.items()
-    }
     return {
         "status": "ok",
         "profile": settings.PROFILE,
@@ -109,9 +102,10 @@ async def get_routes(
         routes = {
             path: RouteForwardingConfig(
                 target_url=config["target_url"],
-                rate_limit=config["rate_limit"]
+                rate_limit=config["rate_limit"],
+                url_rewrite=config["url_rewrite"],
             )
-            for path, config in settings.ROUTE_FORWARDING.items()
+            for path, config in settings.GATEWAY_RULES.items()
         }
         return RouteForwardingResponse(routes=routes)
     except Exception as e:
@@ -178,7 +172,7 @@ async def update_routes(
         }
 
         # Update the settings
-        settings.ROUTE_FORWARDING = new_routes
+        settings.GATEWAY_RULES = new_routes
 
         # Clear rate limiting cache if Redis is available
         if redis:

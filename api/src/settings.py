@@ -30,9 +30,17 @@ class Settings(BaseSettings):
     
     # Route forwarding configuration
     # Format: {"route_prefix": {"target_url": "http://target-service", "rate_limit": 60}}
-    ROUTE_FORWARDING: dict[str, dict[str, str | int]] = {
-        "/api/service1": {"target_url": "http://localhost:8081", "rate_limit": 60},
-        "/api/service2": {"target_url": "http://localhost:8082", "rate_limit": 30}
+    GATEWAY_RULES: dict[str, dict[str, str | int | dict[str, str]]] = {
+        "/api/service1": {
+            "target_url": "http://localhost:8081",
+            "rate_limit": 60,
+            "url_rewrite": {"/api/v1/": "/internal/"},
+        },
+        "/api/service2": {
+            "target_url": "http://localhost:8082",
+            "rate_limit": 30,
+            "url_rewrite": {}
+        }
     }
     
     ALLOWED_ORIGINS: list[str] = [
@@ -88,11 +96,11 @@ class Settings(BaseSettings):
         if self.PROFILE == Profile.TEST:
             pass
 
-    def get_route_config(self, path: str) -> tuple[str, int] | None:
+    def get_route_config(self, path: str) -> tuple[str, int, dict[str, str]] | None:
         """Get the target URL and rate limit for a given path"""
-        for prefix, config in self.ROUTE_FORWARDING.items():
+        for prefix, config in self.GATEWAY_RULES.items():
             if path.startswith(prefix):
-                return config["target_url"], int(config["rate_limit"])
+                return config["target_url"], int(config["rate_limit"]), config["url_rewrite"]
         return None
 
     # Allow environment variable overrides

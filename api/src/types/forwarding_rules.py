@@ -5,6 +5,7 @@ from pydantic import BaseModel, validator
 class RouteForwardingConfig(BaseModel):
     target_url: str
     rate_limit: int
+    url_rewrite: dict[str, str]
 
     @validator('rate_limit')
     def validate_rate_limit(cls, v):

@@ -78,7 +78,7 @@ async def check_rate_limit(
     logger.debug(f"Client IP: {client_ip}")
     
     try:
-        path_prefix = next(prefix for prefix in settings.ROUTE_FORWARDING.keys() 
+        path_prefix = next(prefix for prefix in settings.GATEWAY_RULES.keys() 
                         if request.url.path.startswith(prefix))
         logger.debug(f"Found path_prefix: {path_prefix}")
     except StopIteration:
@@ -138,7 +138,7 @@ class RateLimitRule(Rule):
         if not route_config:
             return None
             
-        target_url, rate_limit = route_config
+        target_url, rate_limit, _ = route_config
         if not rate_limit:
             return None
             
@@ -152,7 +152,7 @@ class RateLimitRule(Rule):
         if not route_config or not hasattr(request.app.state, 'redis'):
             return response
             
-        _, rate_limit = route_config
+        _, rate_limit, _ = route_config
         if not rate_limit:
             return response
             
@@ -162,7 +162,7 @@ class RateLimitRule(Rule):
             
         try:
             client_ip = request.client.host if request.client else "unknown"
-            path_prefix = next(prefix for prefix in settings.ROUTE_FORWARDING.keys() 
+            path_prefix = next(prefix for prefix in settings.GATEWAY_RULES.keys() 
                             if request_path.startswith(prefix))
             key = f"rate_limit:{path_prefix}:{client_ip}"
             

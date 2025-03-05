@@ -3,6 +3,7 @@ from typing import final
 from fastapi import FastAPI, Request,  HTTPException
 from src.services.gateway.rules.asbtract import Rule, RulePhase
 from src.services.gateway.rules.rate_limiter import RateLimitRule
+from src.services.gateway.rules.url_rewrite import UrlRewriteRule
 from src.settings import Settings
 from src.services.proxy.service import forward_request
 
@@ -35,7 +36,7 @@ class GatewayMiddleware:
             self.logger.error(f"No Config found for route {request_path}")
             raise HTTPException(status_code=404, detail="Route not found")
             
-        target_url, _ = route_config
+        target_url, _, _ = route_config
         
         # Apply pre-processing rules
         for rule in self.rules:
@@ -68,7 +69,11 @@ def setup_gateway(app: FastAPI, settings: Settings, logger: Logger) -> GatewayMi
     gateway = GatewayMiddleware(app, settings, logger)
     
     # Add default rules
-    gateway = gateway.add_rule(RateLimitRule())
+    gateway = gateway.add_rule(
+        RateLimitRule()
+    ).add_rule(
+        UrlRewriteRule()
+    )
     
     # Register middleware with FastAPI
     @app.middleware("http")

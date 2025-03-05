@@ -8,24 +8,21 @@ from src.settings import Settings
 @final
 class UrlRewriteRule(Rule):
     """Path rewriting implementation as a rule"""
-    def __init__(self, rewrite_rules: dict[str, str]):
-        """
-        Initialize with rewrite rules mapping.
-        
-        Args:
-            rewrite_rules: Dictionary mapping path prefixes to their replacements
-                           Example: {"/api/v1/": "/internal/"}
-        """
+    def __init__(self):
+        """Initialize with rewrite rules mapping"""
         super().__init__("path_rewrite", RulePhase.PRE)
-        self.rewrite_rules = rewrite_rules
         
     @override
     async def pre_process(self, request: Request, settings: Settings, logger: Logger) -> Response | None:
         original_path = request.url.path
-        
+        route_config = settings.get_route_config(original_path)
+        if not route_config:
+            return None
+        _, _, rewrite_rules = route_config
+         
         # Apply rewrite rules
         rewritten_path = original_path
-        for prefix, replacement in self.rewrite_rules.items():
+        for prefix, replacement in rewrite_rules.items():
             if original_path.startswith(prefix):
                 rewritten_path = original_path.replace(prefix, replacement, 1)
                 break
