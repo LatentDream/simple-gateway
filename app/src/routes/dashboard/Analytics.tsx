@@ -1,4 +1,6 @@
 import { RequestsOverTime } from "@/components/metrics/RequestsOverTime";
+import { StatusCodeDistribution } from "@/components/metrics/StatusCodeDistribution";
+import { TopRoutes } from "@/components/metrics/TopRoutes";
 
 export default function AnalyticsView() {
     return (
@@ -11,6 +13,11 @@ export default function AnalyticsView() {
             </div>
 
             <RequestsOverTime />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <StatusCodeDistribution />
+                <TopRoutes />
+            </div>
         </div>
     );
 }
