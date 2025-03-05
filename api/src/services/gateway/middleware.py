@@ -1,58 +1,78 @@
 from logging import Logger
-from fastapi import FastAPI, Request, HTTPException
-from src.services.rate_limiter.middleware import check_rate_limit
+from typing import final
+from fastapi import FastAPI, Request,  HTTPException
+from src.services.gateway.rules.asbtract import Rule, RulePhase
+from src.services.gateway.rules.rate_limiter import RateLimitRule
 from src.settings import Settings
 from src.services.proxy.service import forward_request
-from src.services.request_tracking.middleware import setup_request_tracking
-import time
 
 
-def setup_gateway(app: FastAPI, settings: Settings, logger: Logger):
-    """Setup gateway middleware with rate limiting and request tracking for configured routes"""
-    
-    @app.middleware("http")
-    async def rate_limit_middleware(request: Request, call_next):
+@final
+class GatewayMiddleware:
+    """Gateway middleware manager that applies rules in sequence"""
+    def __init__(self, app: FastAPI, settings: Settings, logger: Logger):
+        self.app = app
+        self.settings = settings
+        self.logger = logger
+        self.rules: list[Rule] = []
 
+    def add_rule(self, rule: Rule):
+        """Add a rule to the middleware chain"""
+        self.rules.append(rule)
+        return self
+
+    async def process_request(self, request: Request, call_next):
+        """Process the request through all rules and forward it"""
         request_path = request.url.path
-
+        
+        # Skip processing for certain paths
         if request_path.startswith("/admin"):
             return await call_next(request)
-
+            
         # Get route configuration
-        route_config = settings.get_route_config(request_path)
+        route_config = self.settings.get_route_config(request_path)
         if not route_config:
-            logger.error(f"No Config found for route {request_path}")
+            self.logger.error(f"No Config found for route {request_path}")
             raise HTTPException(status_code=404, detail="Route not found")
-
-        target_url, rate_limit = route_config
-
-        # Only check rate limit if a limit is set
-        if rate_limit:
-            response = await check_rate_limit(request, target_url, rate_limit, logger, settings)
-            if response:
-                return response
-
-        # Forward the request to the target service
-        response = await forward_request(request, target_url, logger)
+            
+        target_url, _ = route_config
         
-        if rate_limit and hasattr(request.app.state, 'redis'):
-            if redis := request.app.state.redis:
+        # Apply pre-processing rules
+        for rule in self.rules:
+            if rule.phase in [RulePhase.PRE, RulePhase.BOTH]:
                 try:
-                    client_ip = request.client.host if request.client else "unknown"
-                    path_prefix = next(prefix for prefix in settings.ROUTE_FORWARDING.keys() 
-                                    if request_path.startswith(prefix))
-                    key = f"rate_limit:{path_prefix}:{client_ip}"
-                    
-                    # Get current request count
-                    current = int(time.time())
-                    window_start = current - 60
-                    request_count: int = await redis.zcount(key, window_start, current)
-                    remaining = max(0, rate_limit - request_count)
-                    # Add headers to response
-                    response.headers["X-RateLimit-Limit"] = str(rate_limit)
-                    response.headers["X-RateLimit-Remaining"] = str(remaining)
-                    response.headers["X-RateLimit-Reset"] = str(60 - (current % 60))
+                    result = await rule.pre_process(request, self.settings, self.logger)
+                    if result is not None:
+                        # Rule returned a response, short-circuit
+                        return result
                 except Exception as e:
-                    logger.error(f"Error adding rate limit headers: {str(e)}")
+                    self.logger.error(f"Error in rule {rule.name} pre-process: {str(e)}")
+                    
+        # Forward the request
+        response = await forward_request(request, target_url, self.logger)
+        
+        # Apply post-processing rules
+        for rule in self.rules:
+            if rule.phase in [RulePhase.POST, RulePhase.BOTH]:
+                try:
+                    response = await rule.post_process(request, response, self.settings, self.logger)
+                except Exception as e:
+                    self.logger.error(f"Error in rule {rule.name} post-process: {str(e)}")
                     
         return response
+
+def setup_gateway(app: FastAPI, settings: Settings, logger: Logger) -> GatewayMiddleware:
+    """Setup gateway middleware with configurable rules"""
+    
+    # Create the gateway middleware
+    gateway = GatewayMiddleware(app, settings, logger)
+    
+    # Add default rules
+    gateway = gateway.add_rule(RateLimitRule())
+    
+    # Register middleware with FastAPI
+    @app.middleware("http")
+    async def gateway_middleware(request: Request, call_next):
+        return await gateway.process_request(request, call_next)
+    
+    return gateway

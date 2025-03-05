@@ -1,13 +1,14 @@
 from logging import Logger
-from fastapi import FastAPI, Request, HTTPException, responses
+from typing import final, override
+from fastapi import Request, Response, HTTPException
 from redis.asyncio import Redis
+from src.services.gateway.rules.asbtract import Rule, RulePhase
 from src.settings import Settings
-from src.services.proxy.service import forward_request
-from src.services.request_tracking.middleware import setup_request_tracking
 import time
-from typing import Optional
 from fastapi.responses import JSONResponse
 
+
+@final
 class RateLimiter:
     def __init__(self, redis: Redis, requests_per_minute: int = 60, logger: Logger | None = None):
         self.redis = redis
@@ -15,7 +16,7 @@ class RateLimiter:
         self.window = 60  # 1 minute window
         self.logger = logger
 
-    async def is_rate_limited(self, key: str) -> tuple[bool, Optional[int]]:
+    async def is_rate_limited(self, key: str) -> tuple[bool, int | None]:
         """
         Check if the request should be rate limited
         Returns (is_limited, retry_after)
@@ -53,11 +54,17 @@ class RateLimiter:
             self.logger.debug("Request allowed")
         return False, None
 
-async def check_rate_limit(request: Request, target_url: str, rate_limit: int, logger: Logger, settings: Settings) -> None | JSONResponse:
+async def check_rate_limit(
+    request: Request,
+    target_url: str,
+    rate_limit: int,
+    logger: Logger,
+    settings: Settings
+) -> None | JSONResponse:
     """Check rate limit for the request. Raises HTTPException if rate limited."""
     logger.debug(f"Starting rate limit check for target_url: {target_url}, rate_limit: {rate_limit}")
     
-    redis = request.app.state.redis
+    redis: Redis = request.app.state.redis
     if not redis:
         # If Redis is not available, allow the request but log a warning
         logger.warning("Redis not available, rate limiting disabled")
@@ -116,4 +123,61 @@ async def check_rate_limit(request: Request, target_url: str, rate_limit: int, l
             status_code=500,
             content={"detail": "Rate limiting error"}
         )
+
+
+@final
+class RateLimitRule(Rule):
+    """Rate limiting implementation as a rule"""
+    def __init__(self):
+        super().__init__("rate_limit", RulePhase.BOTH)
+        
+    @override
+    async def pre_process(self, request: Request, settings: Settings, logger: Logger) -> Response | None:
+        request_path = request.url.path
+        route_config = settings.get_route_config(request_path)
+        if not route_config:
+            return None
+            
+        target_url, rate_limit = route_config
+        if not rate_limit:
+            return None
+            
+        response = await check_rate_limit(request, target_url, rate_limit, logger, settings)
+        return response
+        
+    @override
+    async def post_process(self, request: Request, response: Response, settings: Settings, logger: Logger) -> Response:
+        request_path = request.url.path
+        route_config = settings.get_route_config(request_path)
+        if not route_config or not hasattr(request.app.state, 'redis'):
+            return response
+            
+        _, rate_limit = route_config
+        if not rate_limit:
+            return response
+            
+        redis: Redis = request.app.state.redis
+        if not redis:
+            return response
+            
+        try:
+            client_ip = request.client.host if request.client else "unknown"
+            path_prefix = next(prefix for prefix in settings.ROUTE_FORWARDING.keys() 
+                            if request_path.startswith(prefix))
+            key = f"rate_limit:{path_prefix}:{client_ip}"
+            
+            # Get current request count
+            current = int(time.time())
+            window_start = current - 60
+            request_count: int = await redis.zcount(key, window_start, current)
+            remaining = max(0, rate_limit - request_count)
+            
+            # Add headers to response
+            response.headers["X-RateLimit-Limit"] = str(rate_limit)
+            response.headers["X-RateLimit-Remaining"] = str(remaining)
+            response.headers["X-RateLimit-Reset"] = str(60 - (current % 60))
+        except Exception as e:
+            logger.error(f"Error adding rate limit headers: {str(e)}")
+            
+        return response
 
