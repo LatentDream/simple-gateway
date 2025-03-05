@@ -1,6 +1,7 @@
 from logging import Logger
 from typing import final
 from fastapi import FastAPI, Request,  HTTPException
+from src.services.gateway.config_service import get_route_config
 from src.services.gateway.rules.asbtract import Rule, RulePhase
 from src.services.gateway.rules.rate_limiter import RateLimitRule
 from src.services.gateway.rules.url_rewrite import UrlRewriteRule
@@ -31,7 +32,7 @@ class GatewayMiddleware:
             return await call_next(request)
             
         # Get route configuration
-        route_config = self.settings.get_route_config(request_path)
+        route_config = await get_route_config(request_path)
         if not route_config:
             self.logger.error(f"No Config found for route {request_path}")
             raise HTTPException(status_code=404, detail="Route not found")

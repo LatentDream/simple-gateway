@@ -2,6 +2,7 @@ from logging import Logger
 from typing import final, override
 from fastapi import Request, Response, HTTPException
 from redis.asyncio import Redis
+from src.services.gateway.config_service import get_route_config
 from src.services.gateway.rules.asbtract import Rule, RulePhase
 from src.settings import Settings
 import time
@@ -77,27 +78,18 @@ async def check_rate_limit(
     client_ip = request.client.host if request.client else "unknown"
     logger.debug(f"Client IP: {client_ip}")
     
-    try:
-        path_prefix = next(prefix for prefix in settings.GATEWAY_RULES.keys() 
-                        if request.url.path.startswith(prefix))
-        logger.debug(f"Found path_prefix: {path_prefix}")
-    except StopIteration:
+    config = await get_route_config(request.url.path)
+    if not config:
         logger.error(f"No matching path prefix found for path: {request.url.path}")
-        raise HTTPException(status_code=500, detail="Invalid route configuration")
+        raise HTTPException(status_code=404, detail="Invalid route not found")
+    path_prefix, _, _ = config
+    logger.debug(f"Found path_prefix: {path_prefix}")
 
     key = f"rate_limit:{path_prefix}:{client_ip}"
     logger.debug(f"Generated rate limit key: {key}")
 
     try:
         is_limited, retry_after = await rate_limiter.is_rate_limited(key)
-        
-        # Get current request count from Redis
-        current = int(time.time())
-        window_start = current - rate_limiter.window
-        request_count = await redis.zcount(key, window_start, current)
-        
-        logger.info(f"Rate limit check result - is_limited: {is_limited}, retry_after: {retry_after}")
-    
         if is_limited:
             headers = {
                 "Retry-After": str(retry_after),
@@ -134,7 +126,7 @@ class RateLimitRule(Rule):
     @override
     async def pre_process(self, request: Request, settings: Settings, logger: Logger) -> Response | None:
         request_path = request.url.path
-        route_config = settings.get_route_config(request_path)
+        route_config = await get_route_config(request_path)
         if not route_config:
             return None
             
@@ -148,7 +140,7 @@ class RateLimitRule(Rule):
     @override
     async def post_process(self, request: Request, response: Response, settings: Settings, logger: Logger) -> Response:
         request_path = request.url.path
-        route_config = settings.get_route_config(request_path)
+        route_config = await get_route_config(request_path)
         if not route_config or not hasattr(request.app.state, 'redis'):
             return response
             
@@ -162,8 +154,11 @@ class RateLimitRule(Rule):
             
         try:
             client_ip = request.client.host if request.client else "unknown"
-            path_prefix = next(prefix for prefix in settings.GATEWAY_RULES.keys() 
-                            if request_path.startswith(prefix))
+            config = await get_route_config(request.url.path)
+            if not config:
+                logger.error(f"No matching path prefix found for path: {request.url.path}")
+                raise HTTPException(status_code=404, detail="Invalid route not found")
+            path_prefix, _, _ = config
             key = f"rate_limit:{path_prefix}:{client_ip}"
             
             # Get current request count

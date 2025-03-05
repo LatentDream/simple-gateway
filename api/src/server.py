@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
 from logging import Logger
-from fastapi import Depends, FastAPI, Request
+from fastapi import FastAPI
 
+from src.database.base import init_db
 from src.services.auth.middleware import setup_auth_middleware
 from src.services.gateway.middleware import setup_gateway
 from src.services.logging.middleware import setup_error_reporting
@@ -10,11 +11,8 @@ from src.services.storage.Redis import close_redis, init_redis
 from src.services.logging.logging import setup_logging
 from src.services.cors.middleware import setup_cors_middleware
 from src.api.routes.admin import router as admin_router
-from .settings import Settings, get_settings
+from src.settings import Settings
 
-from typing import Any
-from fastapi import APIRouter, FastAPI
-from fastapi.responses import JSONResponse
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -26,6 +24,9 @@ async def lifespan(app: FastAPI):
     
     # --- STARTUP ---
     redis = await init_redis(settings, logger)
+    db_engine, db_session, _ = await init_db(settings, logger)
+    app.state.db_engine = db_engine
+    app.state.db_session = db_session
     app.state.redis = redis
     logger.info("Application startup complete")
     
@@ -57,8 +58,8 @@ def create_server(settings: Settings) -> FastAPI:
     # Adming route
     app.include_router(admin_router)
 
-    # Gateway with rate limiting
-    setup_gateway(app, settings, logger)
+    # Gateway with use custom Rules
+    _ = setup_gateway(app, settings, logger)
     
     # Setup middleware
     setup_request_tracking(app, settings, logger)

@@ -1,6 +1,7 @@
 from logging import Logger
 from typing import final, override
 from fastapi import Request, Response
+from src.services.gateway.config_service import get_route_config
 from src.services.gateway.rules.asbtract import Rule, RulePhase
 from src.settings import Settings
 
@@ -15,7 +16,7 @@ class UrlRewriteRule(Rule):
     @override
     async def pre_process(self, request: Request, settings: Settings, logger: Logger) -> Response | None:
         original_path = request.url.path
-        route_config = settings.get_route_config(original_path)
+        route_config = await get_route_config(original_path)
         if not route_config:
             return None
         _, _, rewrite_rules = route_config

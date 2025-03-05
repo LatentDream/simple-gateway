@@ -9,10 +9,13 @@ from src.services.logging.logging import get_logger
 from src.services.request_tracking.middleware import RequestTracker
 from src.services.storage.Redis import get_redis
 from src.settings import Settings, get_settings
+from src.database.base import get_db
+from src.database.models import GatewayConfig
 import base64
 from datetime import datetime
 from src.types.forwarding_rules import RouteForwardingConfig, RouteForwardingResponse, UpdateRouteForwardingRequest
 from src.types.request_tracking import RequestTrackingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/admin")
 security = HTTPBasic()
@@ -94,18 +97,19 @@ async def me(
 @router.get("/routes", response_model=RouteForwardingResponse)
 @protected_route()
 async def get_routes(
-    settings: Settings = Depends(get_settings),
+    db: AsyncSession = Depends(get_db),
     logger = Depends(get_logger)
 ):
-    """Get the current route forwarding configuration"""
+    """Get the current route forwarding configuration from database"""
     try:
+        configs = await GatewayConfig.get_all_active_configs(db)
         routes = {
-            path: RouteForwardingConfig(
-                target_url=config["target_url"],
-                rate_limit=config["rate_limit"],
-                url_rewrite=config["url_rewrite"],
+            config.route_prefix: RouteForwardingConfig(
+                target_url=config.target_url,
+                rate_limit=config.rate_limit,
+                url_rewrite=config.url_rewrite,
             )
-            for path, config in settings.GATEWAY_RULES.items()
+            for config in configs
         }
         return RouteForwardingResponse(routes=routes)
     except Exception as e:
@@ -156,24 +160,44 @@ async def get_metrics(logger: Logger = Depends(get_logger)):
 @protected_route()
 async def update_routes(
     request: UpdateRouteForwardingRequest,
-    settings: Settings = Depends(get_settings),
+    db: AsyncSession = Depends(get_db),
     logger: Logger = Depends(get_logger),
     redis: Redis | None = Depends(get_redis)
 ):
-    """Update the route forwarding configuration"""
+    """Update the route forwarding configuration in database"""
     try:
-        # Convert the request model to the format expected by settings
-        new_routes = {
-            path: {
-                "target_url": config.target_url,
-                "rate_limit": config.rate_limit,
-                "url_rewrite": config.url_rewrite
-            }
-            for path, config in request.routes.items()
-        }
+        # Get existing configs to track what needs to be deleted
+        existing_configs = await GatewayConfig.get_all_active_configs(db)
+        existing_prefixes = {config.route_prefix for config in existing_configs}
+        new_prefixes = set(request.routes.keys())
 
-        # Update the settings
-        settings.GATEWAY_RULES = new_routes
+        # Delete configs that are no longer present
+        for prefix in existing_prefixes - new_prefixes:
+            await GatewayConfig.delete_config(db, prefix)
+
+        # Update or create new configs
+        for prefix, config in request.routes.items():
+            # Check if config exists
+            existing_config = await GatewayConfig.get_config_by_prefix(db, prefix)
+            
+            if existing_config:
+                # Update existing config
+                await GatewayConfig.update_config(
+                    db,
+                    prefix,
+                    target_url=config.target_url,
+                    rate_limit=config.rate_limit,
+                    url_rewrite=config.url_rewrite
+                )
+            else:
+                # Create new config
+                await GatewayConfig.create_config(
+                    db,
+                    route_prefix=prefix,
+                    target_url=config.target_url,
+                    rate_limit=config.rate_limit,
+                    url_rewrite=config.url_rewrite
+                )
 
         # Clear rate limiting cache if Redis is available
         if redis:
@@ -182,7 +206,8 @@ async def update_routes(
                 await redis.delete(key)
             logger.info("Cleared rate limiting cache after route update")
 
-        return RouteForwardingResponse(routes=request.routes)
+        # Return the updated configuration
+        return await get_routes(db, logger)
     except Exception as e:
         logger.error(f"Error updating route configuration: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

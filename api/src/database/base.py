@@ -1,23 +1,10 @@
 import logging
 from logging import Logger
-from sqlalchemy import MetaData, event
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from typing import Any
 from src.settings import Settings
-
-# Metadata with naming conventions for constraints
-convention = {
-    "ix": "ix_%(column_0_label)s",
-    "uq": "uq_%(table_name)s_%(column_0_name)s",
-    "ck": "ck_%(table_name)s_%(constraint_name)s",
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    "pk": "pk_%(table_name)s"
-}
-metadata = MetaData(naming_convention=convention)
-
-# Global for shared access to the declarative base
-Base = declarative_base(metadata=metadata)
+from src.database.models.base import Base, metadata
 
 # Global variables that will be set during initialization
 async_engine = None
