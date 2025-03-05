@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Dict, List
 
 class RequestMetric(BaseModel):
     timestamp: datetime
@@ -10,13 +9,16 @@ class RequestMetric(BaseModel):
     client_ip: str
     is_rate_limited: bool = False
 
+type Count = int
+type StatusCode = str
+
 class RouteMetrics(BaseModel):
-    total_requests: int
-    success_count: int
-    error_count: int
-    rate_limited_count: int
-    status_codes: Dict[str, int]  # Maps status code to count
-    recent_requests: List[RequestMetric]
+    total_requests: Count
+    success_count: Count
+    error_count: Count
+    rate_limited_count: Count
+    status_codes: dict[StatusCode, Count]
+    recent_requests: list[RequestMetric]
 
 class RequestTrackingResponse(BaseModel):
-    routes: Dict[str, RouteMetrics] 
+    routes: dict[str, RouteMetrics] 

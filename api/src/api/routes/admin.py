@@ -14,31 +14,8 @@ from pydantic import BaseModel, validator
 from typing import Dict
 
 from src.types import request_tracking
+from src.types.forwarding_rules import RouteForwardingConfig, RouteForwardingResponse, UpdateRouteForwardingRequest
 from src.types.request_tracking import RequestTrackingResponse
-
-# Pydantic models for route forwarding
-class RouteForwardingConfig(BaseModel):
-    target_url: str
-    rate_limit: int
-
-    @validator('rate_limit')
-    def validate_rate_limit(cls, v):
-        if v < 0:
-            raise ValueError('rate_limit must be non-negative')
-        return v
-
-class RouteForwardingResponse(BaseModel):
-    routes: Dict[str, RouteForwardingConfig]
-
-class UpdateRouteForwardingRequest(BaseModel):
-    routes: Dict[str, RouteForwardingConfig]
-
-    @validator('routes')
-    def validate_routes(cls, v):
-        for path, config in v.items():
-            if not path.startswith('/'):
-                raise ValueError(f'Route path must start with /: {path}')
-        return v
 
 router = APIRouter(prefix="/admin")
 security = HTTPBasic()

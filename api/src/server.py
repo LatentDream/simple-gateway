@@ -3,12 +3,12 @@ from logging import Logger
 from fastapi import Depends, FastAPI, Request
 
 from src.services.auth.middleware import setup_auth_middleware
+from src.services.gateway.middleware import setup_gateway
 from src.services.logging.middleware import setup_error_reporting
 from src.services.request_tracking.middleware import setup_request_tracking
 from src.services.storage.Redis import close_redis, init_redis
 from src.services.logging.logging import setup_logging
 from src.services.cors.middleware import setup_cors_middleware
-from src.services.rate_limiter.middleware import setup_gateway
 from src.api.routes.admin import router as admin_router
 from .settings import Settings, get_settings
 
