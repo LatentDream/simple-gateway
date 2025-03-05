@@ -1,8 +1,52 @@
 from fastapi.testclient import TestClient
 from tests.api.mock_proxy_api import configure_proxy_mock
+import pytest
+import base64
+from datetime import datetime
+from src.types.forwarding_rules import UpdateRouteForwardingRequest, RouteForwardingConfig
+
+
+@pytest.fixture
+def valid_session_token(settings):
+    timestamp = str(datetime.utcnow().timestamp())
+    token = base64.b64encode(f"{settings.API_USERNAME}:{timestamp}".encode()).decode()
+    return token
+
+@pytest.fixture
+def setup_routes(test_client, valid_session_token):
+    # Set valid session token
+    test_client.cookies.set("session", valid_session_token)
+    
+    # Create test route configurations
+    test_routes = {
+        "/api/service1": RouteForwardingConfig(
+            target_url="http://localhost:8081",  # Remove /api/service1 from here
+            rate_limit=1000,
+            url_rewrite={"":""}
+        )
+    }
+    
+    # Add routes using the admin API
+    update_request = UpdateRouteForwardingRequest(routes=test_routes)
+    response = test_client.put(
+        "/admin/routes",
+        json=update_request.dict()
+    )
+    assert response.status_code == 200
+    
+    # Verify routes were set up correctly
+    response = test_client.get("/admin/routes")
+    assert response.status_code == 200
+    assert "routes" in response.json()
+    return test_routes
 
 
 class TestProxyIntegration:
+    @pytest.fixture(autouse=True)
+    def _setup_routes(self, setup_routes):
+        # This fixture will automatically run before each test in this class
+        pass
+
     def test_proxy_get_request_success(self, test_client: TestClient, monkeypatch):
         # Configure mock responses for the proxy
         test_content = b'{"message": "Success from service1"}'

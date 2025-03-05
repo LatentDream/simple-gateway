@@ -5,6 +5,7 @@ from pytest import MonkeyPatch
 import httpx
 from src.services.proxy.service import forward_request
 import logging
+from urllib.parse import urljoin
 
 class MockStreamResponse:
     def __init__(self, status_code: int, content: bytes, headers: dict[Any, Any] | None = None):
@@ -38,8 +39,14 @@ class MockAsyncClient:
             'content': content
         }
         
+        # Check if the exact URL is in responses
         if url in self.responses:
             return self.responses[url]
+            
+        # If not found, try to match the base URL + path
+        for response_url, response in self.responses.items():
+            if url.startswith(response_url):
+                return response
         
         # Default response if no mock configured
         return MockStreamResponse(200, b"Default response", {"content-type": "text/plain"})
