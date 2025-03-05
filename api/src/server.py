@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI, Request
 
 from src.services.auth.middleware import setup_auth_middleware
 from src.services.logging.middleware import setup_error_reporting
+from src.services.request_tracking.middleware import setup_request_tracking
 from src.services.storage.Redis import close_redis, init_redis
 from src.services.logging.logging import setup_logging
 from src.services.cors.middleware import setup_cors_middleware
@@ -60,6 +61,7 @@ def create_server(settings: Settings) -> FastAPI:
     setup_gateway(app, settings, logger)
     
     # Setup middleware
+    setup_request_tracking(app, settings, logger)
     setup_auth_middleware(app, settings, logger)
     setup_cors_middleware(app, settings)
 

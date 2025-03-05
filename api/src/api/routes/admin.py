@@ -1,15 +1,20 @@
+from logging import Logger
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from redis.asyncio import Redis
 from src.services.auth.middleware import protected_route, verify_basic_auth
 from src.services.logging.logging import get_logger
+from src.services.request_tracking.middleware import RequestTracker
 from src.services.storage.Redis import get_redis
 from src.settings import Settings, get_settings
 import base64
 from datetime import datetime
 from pydantic import BaseModel
 from typing import Dict
+
+from src.types import request_tracking
+from src.types.request_tracking import RequestTrackingResponse
 
 # Pydantic models for route forwarding
 class RouteForwardingConfig(BaseModel):
@@ -143,3 +148,23 @@ async def clear_cache(
     except Exception as e:
         logger.error(f"Error clearing Redis database: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/metrics")
+async def get_metrics(logger: Logger = Depends(get_logger)):
+    if logger:
+        logger.debug("Handling GET request to /admin/metrics endpoint")
+    try:
+        tracker = RequestTracker(logger)
+        metrics = await tracker.get_metrics()
+        if logger:
+            logger.debug("Successfully retrieved metrics")
+        return metrics
+    except HTTPException as he:
+        if logger:
+            logger.error(f"HTTP error retrieving metrics: {str(he)}", exc_info=True)
+        raise
+    except Exception as e:
+        if logger:
+            logger.error(f"Unexpected error retrieving metrics: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve metrics: {str(e)}")

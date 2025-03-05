@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request, HTTPException, responses
 from redis.asyncio import Redis
 from src.settings import Settings
 from src.services.proxy.service import forward_request
+from src.services.request_tracking.middleware import setup_request_tracking
 import time
 from typing import Optional
 from fastapi.responses import JSONResponse
@@ -117,7 +118,7 @@ async def check_rate_limit(request: Request, target_url: str, rate_limit: int, l
         )
 
 def setup_gateway(app: FastAPI, settings: Settings, logger: Logger):
-    """Setup gateway middleware with rate limiting for configured routes"""
+    """Setup gateway middleware with rate limiting and request tracking for configured routes"""
     
     @app.middleware("http")
     async def rate_limit_middleware(request: Request, call_next):
