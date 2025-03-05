@@ -10,6 +10,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 
 type TimeRange = {
     label: string;
@@ -95,7 +97,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function RequestsOverTime() {
-    const { metrics, isLoading, error } = useMetrics();
+    const { metrics, isLoading, error, refreshMetrics } = useMetrics();
     const [selectedRange, setSelectedRange] = useState<TimeRange>(TIME_RANGES[0]);
     const [breakdown, setBreakdown] = useState<BreakdownType>('route');
 
@@ -132,7 +134,7 @@ export function RequestsOverTime() {
 
         const endTime = latestTimestamp;
         const startTime = endTime - selectedRange.duration;
-        
+
         console.log('Time range:', {
             start: new Date(startTime).toISOString(),
             end: new Date(endTime).toISOString(),
@@ -174,7 +176,7 @@ export function RequestsOverTime() {
 
                 // Find the appropriate time slot by rounding down to the nearest interval
                 const slotTime = startTime + Math.floor((timestamp - startTime) / selectedRange.interval) * selectedRange.interval;
-                
+
                 if (!timeSlots.has(slotTime)) {
                     console.log('No slot found for timestamp:', {
                         timestamp: new Date(timestamp).toISOString(),
@@ -255,6 +257,14 @@ export function RequestsOverTime() {
                     <CardDescription>Number of requests per {breakdown}</CardDescription>
                 </div>
                 <div className="flex items-center gap-4">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={refreshMetrics}
+                    >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Refresh
+                    </Button>
                     <ToggleGroup type="single" value={breakdown} onValueChange={(value: BreakdownType) => value && setBreakdown(value)}>
                         <ToggleGroupItem value="route" aria-label="Show route breakdown">
                             By Route
@@ -288,20 +298,20 @@ export function RequestsOverTime() {
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                            dataKey="time" 
+                        <XAxis
+                            dataKey="time"
                             label={{ value: 'Time', position: 'insideBottom', offset: -5 }}
                         />
-                        <YAxis 
+                        <YAxis
                             label={{ value: 'Requests', angle: -90, position: 'insideLeft' }}
                         />
                         <Tooltip content={<CustomTooltip />} />
                         <Legend />
                         {breakdownKeys.map((key, index) => {
-                            const color = breakdown === 'route' 
+                            const color = breakdown === 'route'
                                 ? ROUTE_COLORS[index % ROUTE_COLORS.length]
                                 : STATUS_COLORS[key] || '#94a3b8';
-                            
+
                             return (
                                 <Area
                                     key={key}
