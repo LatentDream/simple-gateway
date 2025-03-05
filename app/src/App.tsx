@@ -8,6 +8,8 @@ import { ProtectedRoute } from './components/controls/ProtectedRoutes';
 import { Toaster } from 'sonner'
 import HomeView from './routes/dashboard/Home';
 import { Layout } from './routes/dashboard/Layout';
+import AnalyticsView from './routes/dashboard/Analytics';
+import ConfigView from './routes/dashboard/Config';
 
 
 function ErrorBoundary() {
@@ -44,7 +46,8 @@ function App() {
                 errorElement={<ErrorBoundary />}
               >
                 <Route index element={<HomeView />} />
-                { /* <Route path="path/:dyn" element={<PageView />} /> */}
+                <Route path="config" element={<ConfigView />} />
+                <Route path="analytics" element={<AnalyticsView />} />
               </Route>
             </Routes>
           </BrowserRouter>

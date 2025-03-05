@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { RouteForwardingResponse } from '@/types/auth';
 import { getRoutes } from '@/services/api';
 
@@ -7,11 +7,12 @@ interface ConfigContextType {
     isLoading: boolean;
     error: string | null;
     refreshRoutes: () => Promise<void>;
+    baseUrl: string;
 }
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
 
-export function ConfigProvider({ children }: { children: React.ReactNode }) {
+export function ConfigProvider({ children }: { children: ReactNode }) {
     const [routes, setRoutes] = useState<RouteForwardingResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -39,11 +40,17 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         fetchRoutes();
     }, []);
 
+    // TODO: This will be fetched dynamically later
+    const config = {
+        baseUrl: 'http://localhost:8000'
+    };
+
     const value = {
         routes,
         isLoading,
         error,
-        refreshRoutes: fetchRoutes
+        refreshRoutes: fetchRoutes,
+        ...config
     };
 
     return (
