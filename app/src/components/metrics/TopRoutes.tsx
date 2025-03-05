@@ -1,7 +1,8 @@
 import { useMetrics } from "@/context/MetricsContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, LabelList } from "recharts";
 import { useMemo, useState } from "react";
+import { TrendingDown, TrendingUp } from "lucide-react";
 import {
     Select,
     SelectContent,
@@ -9,6 +10,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { ChartContainer } from "@/components/ui/chart";
 
 const TIME_RANGES = [
     {
@@ -33,39 +35,37 @@ const TIME_RANGES = [
     },
 ];
 
-const ROUTE_COLORS = ["#2563eb", "#854aba", "#6366f1", "#ea580c", "#16a34a", "#d946ef"] as const;
-
-const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-        const data = payload[0].payload;
-        return (
-            <div className="bg-background border rounded-lg shadow-lg p-3">
-                <p className="font-medium">{data.route}</p>
-                <p style={{ color: payload[0].color }}>
-                    {data.requests} requests ({(data.percentage * 100).toFixed(1)}%)
-                </p>
-                <div className="text-sm text-muted-foreground mt-1">
-                    Success Rate: {(data.successRate * 100).toFixed(1)}%
-                </div>
-            </div>
-        );
-    }
-    return null;
+const chartConfig = {
+    requests: {
+        label: "Requests",
+        color: "hsl(var(--chart-1))",
+    },
+    label: {
+        color: "hsl(var(--foreground))",
+    },
+    value: {
+        color: "hsl(var(--muted-foreground))",
+    },
+    background: {
+        color: "hsl(var(--muted))",
+    },
 };
 
 export function TopRoutes() {
     const { metrics, isLoading, error } = useMetrics();
     const [selectedRange, setSelectedRange] = useState(TIME_RANGES[0]);
 
-    const chartData = useMemo(() => {
-        if (!metrics) return [];
+    const { chartData, totalRequests, previousTotal, trend } = useMemo(() => {
+        if (!metrics) return { chartData: [], totalRequests: 0, previousTotal: 0, trend: 0 };
 
         const now = Date.now();
         const startTime = now - selectedRange.duration;
+        const previousStartTime = startTime - selectedRange.duration;
         const routeStats: { [key: string]: { requests: number; successes: number } } = {};
-        let totalRequests = 0;
+        let total = 0;
+        let previousTotal = 0;
 
-        // Count requests and successful responses per route within the time range
+        // Count current period requests
         Object.entries(metrics.routes).forEach(([route, routeMetrics]) => {
             routeStats[route] = { requests: 0, successes: 0 };
             
@@ -73,31 +73,38 @@ export function TopRoutes() {
                 const timestamp = new Date(request.timestamp).getTime();
                 if (timestamp >= startTime) {
                     routeStats[route].requests += 1;
-                    totalRequests += 1;
-                    // Consider 2xx status codes as successful
+                    total += 1;
                     if (request.status_code >= 200 && request.status_code < 300) {
                         routeStats[route].successes += 1;
                     }
+                } else if (timestamp >= previousStartTime) {
+                    previousTotal += 1;
                 }
             });
         });
 
+        // Calculate trend
+        const trend = previousTotal > 0 
+            ? ((total - previousTotal) / previousTotal) * 100 
+            : 0;
+
         // Transform into chart data format and sort by request count
-        return Object.entries(routeStats)
+        const data = Object.entries(routeStats)
             .map(([route, stats]) => ({
-                route,
+                route: route.replace(/^\//, ''), // Remove leading slash
                 requests: stats.requests,
-                percentage: stats.requests / totalRequests,
-                successRate: stats.requests > 0 ? stats.successes / stats.requests : 0,
-                fill: ROUTE_COLORS[0]
+                successRate: stats.requests > 0 ? (stats.successes / stats.requests) * 100 : 0,
             }))
             .filter(data => data.requests > 0)
             .sort((a, b) => b.requests - a.requests)
-            .slice(0, 6) // Show top 6 routes
-            .map((data, index) => ({
-                ...data,
-                fill: ROUTE_COLORS[index % ROUTE_COLORS.length]
-            }));
+            .slice(0, 6); // Show top 6 routes
+
+        return {
+            chartData: data,
+            totalRequests: total,
+            previousTotal,
+            trend
+        };
     }, [metrics, selectedRange]);
 
     if (isLoading) {
@@ -133,8 +140,8 @@ export function TopRoutes() {
     }
 
     return (
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+        <Card className="flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
                     <CardTitle>Top Routes</CardTitle>
                     <CardDescription>Most frequently accessed endpoints</CardDescription>
@@ -158,33 +165,74 @@ export function TopRoutes() {
                     </SelectContent>
                 </Select>
             </CardHeader>
-            <CardContent className="h-[320px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                        data={chartData}
-                        layout="vertical"
-                        margin={{ top: 0, right: 16, left: 16, bottom: 0 }}
-                    >
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                        <XAxis type="number" />
-                        <YAxis 
-                            type="category" 
-                            dataKey="route" 
-                            width={120}
-                            tick={{ fontSize: 11 }}
-                        />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Bar
-                            dataKey="requests"
-                            background={{ fill: "#f3f4f6" }}
-                        >
-                            {chartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.fill} />
-                            ))}
-                        </Bar>
-                    </BarChart>
-                </ResponsiveContainer>
+            <CardContent>
+                <ChartContainer config={chartConfig}>
+                    <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                                data={chartData}
+                                layout="vertical"
+                                margin={{ top: 0, right: 48, bottom: 0, left: 0 }}
+                                barSize={40}
+                            >
+                                <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                                <YAxis
+                                    dataKey="route"
+                                    type="category"
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={false}
+                                    width={0}
+                                />
+                                <XAxis type="number" hide />
+                                <Bar
+                                    dataKey="requests"
+                                    fill={chartConfig.requests.color}
+                                    radius={[4, 4, 4, 4]}
+                                    background={{ fill: chartConfig.background.color }}
+                                >
+                                    <LabelList
+                                        dataKey="route"
+                                        position="left"
+                                        offset={-160}
+                                        fill={chartConfig.label.color}
+                                        fontSize={12}
+                                        formatter={(value: string) => value}
+                                    />
+                                    <LabelList
+                                        dataKey="requests"
+                                        position="right"
+                                        offset={16}
+                                        fill={chartConfig.value.color}
+                                        fontSize={12}
+                                        formatter={(value: number) => value.toLocaleString()}
+                                    />
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </ChartContainer>
             </CardContent>
+            <CardFooter className="flex-col items-start gap-2 text-sm">
+                <div className="flex items-center gap-2 font-medium leading-none">
+                    {trend > 0 ? (
+                        <>
+                            Traffic increased by {Math.abs(trend).toFixed(1)}% 
+                            <TrendingUp className="h-4 w-4 text-success" />
+                        </>
+                    ) : trend < 0 ? (
+                        <>
+                            Traffic decreased by {Math.abs(trend).toFixed(1)}%
+                            <TrendingDown className="h-4 w-4 text-destructive" />
+                        </>
+                    ) : (
+                        <>Traffic unchanged</>
+                    )}
+                </div>
+                <div className="leading-none text-muted-foreground">
+                    {totalRequests.toLocaleString()} total requests in the selected time range
+                </div>
+            </CardFooter>
         </Card>
     );
 } 
