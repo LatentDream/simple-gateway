@@ -34,7 +34,7 @@ class Settings(BaseSettings):
         "/api/service1": {
             "target_url": "http://localhost:8081",
             "rate_limit": 60,
-            "url_rewrite": {"/api/v1/": "/internal/"},
+            "url_rewrite": {"/api/service1": "/api/service1/time"},
         },
         "/api/service2": {
             "target_url": "http://localhost:8082",

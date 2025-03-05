@@ -10,8 +10,8 @@ async def forward_request(request: Request, target_url: str, logger: Logger) -> 
     """
     client = httpx.AsyncClient(follow_redirects=True)
     
-    # Build the target URL
-    path = request.url.path
+    # Build the target URL - use rewritten path if it exists
+    path = getattr(request.state, "rewritten_path", request.url.path)
     query = str(request.url.query)
     target_path = f"{target_url}{path}"
     if query:
