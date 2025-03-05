@@ -13,9 +13,10 @@ import { cn } from "@/lib/utils";
 
 interface RouteDetailsProps {
     routePath: string | null;
+    onDelete?: () => void;
 }
 
-export function RouteDetails({ routePath }: RouteDetailsProps) {
+export function RouteDetails({ routePath, onDelete }: RouteDetailsProps) {
     const { routes, editConfig, deleteConfig } = useConfig();
     const { toast } = useToast();
     const [path, setPath] = useState("");
@@ -124,6 +125,7 @@ export function RouteDetails({ routePath }: RouteDetailsProps) {
         try {
             setIsDeleting(true);
             await deleteConfig(routeConfig.id);
+            onDelete?.();
         } finally {
             setIsDeleting(false);
         }

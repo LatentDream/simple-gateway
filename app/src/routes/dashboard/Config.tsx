@@ -6,6 +6,10 @@ import { RouteDetails } from "@/components/config/RouteDetails";
 export default function ConfigView() {
     const [selectedRoute, setSelectedRoute] = useState<string | null>(null);
 
+    const handleRouteDelete = () => {
+        setSelectedRoute(null);
+    };
+
     return (
         <div className="flex flex-col h-full">
             <div className="text-center mb-8">
@@ -20,7 +24,7 @@ export default function ConfigView() {
                     <RoutesList selectedRoute={selectedRoute} onRouteSelect={setSelectedRoute} />
                 </div>
                 <div className="flex-1 min-h-0">
-                    <RouteDetails routePath={selectedRoute} />
+                    <RouteDetails routePath={selectedRoute} onDelete={handleRouteDelete} />
                 </div>
             </div>
         </div>
