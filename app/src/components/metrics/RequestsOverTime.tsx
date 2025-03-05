@@ -1,6 +1,6 @@
 import { useMetrics } from "@/context/MetricsContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useMemo, useState } from "react";
 import {
     Select,
@@ -55,6 +55,24 @@ interface TimeSlotData {
     total: number;
     [key: string]: number | string; // Allow dynamic route names as keys
 }
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="bg-background border rounded-lg shadow-lg p-3">
+                <p className="font-medium">{label}</p>
+                <div className="space-y-1">
+                    {payload.map((entry: any) => (
+                        <p key={entry.name} style={{ color: entry.color }}>
+                            {entry.name}: {entry.value} requests
+                        </p>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+    return null;
+};
 
 export function RequestsOverTime() {
     const { metrics, isLoading, error } = useMetrics();
@@ -220,7 +238,7 @@ export function RequestsOverTime() {
             </CardHeader>
             <CardContent className="h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
+                    <AreaChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis 
                             dataKey="time" 
@@ -229,29 +247,21 @@ export function RequestsOverTime() {
                         <YAxis 
                             label={{ value: 'Requests', angle: -90, position: 'insideLeft' }}
                         />
-                        <Tooltip />
+                        <Tooltip content={<CustomTooltip />} />
                         <Legend />
                         {routes.map((route, index) => (
-                            <Line
+                            <Area
                                 key={route}
                                 type="monotone"
                                 dataKey={route}
                                 stroke={colors[index % colors.length]}
+                                fill={colors[index % colors.length]}
+                                stackId="1"
                                 name={route}
-                                dot={false}
-                                connectNulls
+                                fillOpacity={0.4}
                             />
                         ))}
-                        <Line
-                            type="monotone"
-                            dataKey="total"
-                            stroke="#94a3b8"
-                            name="Total"
-                            strokeDasharray="5 5"
-                            dot={false}
-                            connectNulls
-                        />
-                    </LineChart>
+                    </AreaChart>
                 </ResponsiveContainer>
             </CardContent>
         </Card>
