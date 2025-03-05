@@ -1,11 +1,13 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { RouteForwardingResponse } from '@/types/auth';
 import { getRoutes } from '@/services/api';
+import { toast } from 'sonner';
 
 interface ConfigContextType {
     routes: RouteForwardingResponse | null;
     isLoading: boolean;
     error: string | null;
+    editConfig: (route: string, config: any) => Promise<void>;
     refreshRoutes: () => Promise<void>;
     baseUrl: string;
 }
@@ -45,10 +47,15 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         baseUrl: 'http://localhost:8000'
     };
 
+    const editConfig = async (route: string, config: any) => {
+        toast.warning("Comming Soon");
+    }
+
     const value = {
         routes,
         isLoading,
         error,
+        editConfig,
         refreshRoutes: fetchRoutes,
         ...config
     };

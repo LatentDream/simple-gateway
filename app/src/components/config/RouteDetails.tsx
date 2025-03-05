@@ -43,9 +43,6 @@ export function RouteDetails({ routePath }: RouteDetailsProps) {
                 target_url: targetUrl,
                 rate_limit: parseInt(rateLimit)
             });
-            toast({
-                description: "Route configuration updated successfully",
-            });
         } catch (error) {
             toast({
                 description: "Failed to update route configuration",
@@ -64,7 +61,7 @@ export function RouteDetails({ routePath }: RouteDetailsProps) {
                 </Button>
             </div>
             <Tabs defaultValue="general" className="flex-1">
-                <div className="border-b px-4">
+                <div className="border-b px-4 bg-muted py-0.5">
                     <TabsList className="h-12">
                         <TabsTrigger value="general">General</TabsTrigger>
                         <TabsTrigger value="rate-limiting">Rate Limiting</TabsTrigger>

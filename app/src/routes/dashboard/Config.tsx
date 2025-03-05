@@ -15,7 +15,7 @@ export default function ConfigView() {
                 </p>
             </div>
 
-            <div className="flex gap-6 flex-1 min-h-0">
+            <div className="flex flex-1 min-h-0 border-t">
                 <div className="w-80 min-h-0">
                     <RoutesList selectedRoute={selectedRoute} onRouteSelect={setSelectedRoute} />
                 </div>

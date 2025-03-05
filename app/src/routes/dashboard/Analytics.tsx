@@ -2,7 +2,7 @@ import { RequestsOverTime } from "@/components/metrics/RequestsOverTime";
 
 export default function AnalyticsView() {
     return (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-8 p-4">
             <div className="text-center">
                 <h2 className="text-2xl font-bold mb-2">Analytics</h2>
                 <p className="text-muted-foreground">
