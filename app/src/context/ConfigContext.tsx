@@ -48,21 +48,22 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     };
 
     const editConfig = async (route: string, config: RouteForwardingConfig) => {
-        if (!routes) return;
-
         try {
             setIsLoading(true);
             setError(null);
 
+            // Initialize routes object if it doesn't exist
+            const currentRoutes = routes || { routes: {} };
+
             // Check if this is a new route and if it already exists
-            if (route !== Object.keys(routes.routes).find(r => r === route) && routes.routes[route]) {
+            if (route !== Object.keys(currentRoutes.routes).find(r => r === route) && currentRoutes.routes[route]) {
                 throw new Error('A route with this path already exists');
             }
 
             // Create new routes object with the updated config
             const updatedRoutes: RouteForwardingResponse = {
                 routes: {
-                    ...routes.routes,
+                    ...currentRoutes.routes,
                     [route]: config
                 }
             };
