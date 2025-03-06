@@ -7,9 +7,16 @@ import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { isEqual } from "lodash";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Copy } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { copyToClipboard } from "@/lib/utils";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface RouteDetailsProps {
     routePath: string | null;
@@ -17,7 +24,7 @@ interface RouteDetailsProps {
 }
 
 export function RouteDetails({ routePath, onDelete }: RouteDetailsProps) {
-    const { routes, editConfig, deleteConfig } = useConfig();
+    const { routes, editConfig, deleteConfig, baseUrl } = useConfig();
     const { toast } = useToast();
     const [path, setPath] = useState("");
     const [targetUrl, setTargetUrl] = useState("");
@@ -161,6 +168,7 @@ export function RouteDetails({ routePath, onDelete }: RouteDetailsProps) {
                                     onClick={handleSave} 
                                     disabled={isSaving || !hasChanges}
                                     variant={hasChanges ? "default" : "secondary"}
+                                    className={isSaving || !hasChanges ? "" : "bg-muted-foreground"}
                                 >
                                     {isSaving ? "Saving..." : hasChanges ? "Save Changes" : "No Changes"}
                                 </Button>
@@ -181,23 +189,74 @@ export function RouteDetails({ routePath, onDelete }: RouteDetailsProps) {
                                 <TabsContent value="general" className="mt-0 space-y-6">
                                     <div className="space-y-2">
                                         <Label htmlFor="path">Path</Label>
-                                        <Input
-                                            id="path"
-                                            value={path}
-                                            onChange={(e) => setPath(e.target.value)}
-                                            disabled={!isNewRoute}
-                                            placeholder="/api/*"
-                                        />
+                                        <div className="flex gap-2">
+                                            <Input
+                                                id="path"
+                                                value={path}
+                                                onChange={(e) => setPath(e.target.value)}
+                                                disabled={!isNewRoute}
+                                                placeholder="/api/*"
+                                            />
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={async () => {
+                                                                const fullUrl = `${baseUrl}${path}`;
+                                                                const success = await copyToClipboard(fullUrl);
+                                                                if (success) {
+                                                                    toast({
+                                                                        description: "Gateway URL copied to clipboard",
+                                                                    });
+                                                                }
+                                                            }}
+                                                        >
+                                                            <Copy className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Copy gateway URL</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
                                     </div>
 
                                     <div className="space-y-2">
                                         <Label htmlFor="targetUrl">Target URL</Label>
-                                        <Input
-                                            id="targetUrl"
-                                            value={targetUrl}
-                                            onChange={(e) => setTargetUrl(e.target.value)}
-                                            placeholder="https://api.example.com"
-                                        />
+                                        <div className="flex gap-2">
+                                            <Input
+                                                id="targetUrl"
+                                                value={targetUrl}
+                                                onChange={(e) => setTargetUrl(e.target.value)}
+                                                placeholder="https://api.example.com"
+                                            />
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={async () => {
+                                                                const success = await copyToClipboard(targetUrl);
+                                                                if (success) {
+                                                                    toast({
+                                                                        description: "Target URL copied to clipboard",
+                                                                    });
+                                                                }
+                                                            }}
+                                                        >
+                                                            <Copy className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Copy target URL</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
                                     </div>
                                 </TabsContent>
 
