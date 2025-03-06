@@ -19,6 +19,7 @@ curl -sSL https://install.python-poetry.org | python3 -
 3. Run the dev build with [`Just`](https://github.com/casey/just):
    ```sh
    just dev
+   curl http://localhost:8000/admin/healthcheck
    ```
 
 
@@ -26,6 +27,7 @@ To run the final dev|prod build from a Docker container:
    ```sh
    just build
    just preview {DEV|PROD}
+   curl http://localhost:552/admin/healthcheck
    ```
 
 ## Testing

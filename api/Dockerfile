@@ -10,13 +10,18 @@ RUN apt-get update && apt-get install -y \
     supervisor \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY requirements.txt /srv/
-RUN pip install -r requirements.txt --no-cache-dir
+# Install Poetry
+RUN curl -sSL https://install.python-poetry.org | python3 -
+ENV PATH="/root/.local/bin:$PATH"
 
-# Install buildfixer wheel
-COPY buildfixer*.whl /srv/
-RUN pip install --no-cache-dir buildfixer*.whl
+# Copy Poetry configuration files
+COPY pyproject.toml poetry.lock* /srv/
+
+# Configure Poetry to not create virtual environments
+RUN poetry config virtualenvs.create false
+
+# Install Python dependencies
+RUN poetry install --only main --no-interaction --no-ansi --no-root
 
 # Copy the application
 COPY . /srv

@@ -21,7 +21,7 @@ router = APIRouter(prefix="/admin")
 security = HTTPBasic()
 
 
-@router.get("/health_check")
+@router.get("/healthcheck")
 async def health_check(settings: Settings = Depends(get_settings)):
     return {
         "status": "ok",
