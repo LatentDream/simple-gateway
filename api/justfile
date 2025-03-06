@@ -58,7 +58,7 @@ preview profile:
 # -------------------- Deploy ---------------------
 
 # Deploy the PROD API to Ploomber Cloud
-deploy openai_api_key:
+deploy:
     just _req
     PROFILE=PROD VERSION={{VERSION}} ploomber-cloud deploy
 

@@ -6,9 +6,8 @@
 
 The enviroment has currently three dependencies:
 ```sh
-sudo apt-get tree       # Mandatory
-sudo apt-get just       # CMD runner (CMD can be run mannual (look in `Justfile` for the cmd))
-curl -sSL https://install.python-poetry.org | python3 - # Python Env
+sudo apt-get just
+curl -sSL https://install.python-poetry.org | python3 -
 ```
 
 1. Activate the debugger environment:
@@ -17,15 +16,8 @@ curl -sSL https://install.python-poetry.org | python3 - # Python Env
    poetry install
    ```
 
-2. Start Redis & the background Worker
-   ```sh
-   export OPENAI_API_KEY=...
-   just dev-worker
-   ```
-
 3. Run the dev build with [`Just`](https://github.com/casey/just):
    ```sh
-   export OPENAI_API_KEY=...
    just dev
    ```
 
@@ -33,7 +25,7 @@ curl -sSL https://install.python-poetry.org | python3 - # Python Env
 To run the final dev|prod build from a Docker container:
    ```sh
    just build
-   just preview {DEV|PROD} {openai_api_key_value}
+   just preview {DEV|PROD}
    ```
 
 ## Testing
@@ -57,14 +49,18 @@ To run the final dev|prod build from a Docker container:
    just test-coverage
    ```
 
-# Installing dependencies
+# Deploying
 
 Make sure to test the final build with:
 ```sh
 just build
-just preview {DEV|PROD} {openai_api_key_value}
+just preview {DEV|PROD}
 ```
 - This will automatically convert Poetry env to a valid `requirements.txt`
+
+```sh
+just deploy
+```
 
 # Database
 
