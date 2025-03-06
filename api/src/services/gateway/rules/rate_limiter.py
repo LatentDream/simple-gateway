@@ -75,7 +75,16 @@ async def check_rate_limit(
     rate_limiter = RateLimiter(redis, rate_limit, logger, settings)
     
     # Use IP address and path prefix as the rate limit key
-    client_ip = request.client.host if request.client else "unknown"
+    # Get client IP address, prioritizing X-Forwarded-For header if present
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        # Use the first IP in the X-Forwarded-For chain (the original client)
+        client_ip = forwarded_for.split(",")[0].strip()
+    else:
+        # Fall back to direct client IP
+        client_ip = request.client.host if request.client else "unknown"
+    
+    logger.debug(f"Client IP: {client_ip}")
     logger.debug(f"Client IP: {client_ip}")
     
     config = await get_route_config(request.url.path)

@@ -152,7 +152,7 @@ class TestRateLimiterIntegration:
         assert response.status_code == 200
         assert response.content == test_content
 
-    def test_different_paths_separate_limits(self, test_client: TestClient, monkeypatch, settings):
+    def test_different_services_separate_limits(self, test_client: TestClient, monkeypatch, settings):
         # Wait for any previous test's window to expire
         time.sleep(settings.RATE_LIMIT_WINDOW_SECONDS)
         
@@ -161,7 +161,7 @@ class TestRateLimiterIntegration:
         test_headers = {"content-type": "application/json"}
         responses = {
             "http://localhost:8081/api/limited/path1": (200, test_content, test_headers),
-            "http://localhost:8081/api/limited/path2": (200, test_content, test_headers)
+            "http://localhost:8081/api/service1/path2": (200, test_content, test_headers)
         }
         configure_proxy_mock(monkeypatch, responses)
 
@@ -176,7 +176,7 @@ class TestRateLimiterIntegration:
 
         # But should still be able to make requests to second path
         for _ in range(2):
-            response = test_client.get("/api/limited/path2")
+            response = test_client.get("/api/service1/path2")
             assert response.status_code == 200
 
     def test_different_clients_separate_limits(self, test_client: TestClient, monkeypatch, settings):
