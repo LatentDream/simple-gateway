@@ -85,6 +85,7 @@ The gateway can be configured through the web UI and soon with a `config.json` f
 ## Roadmap
 
 - [ ] `config.json` support for route definition
+- [ ] On the edge traffic management
 - [ ] Authentication and authorization plugins
 - [ ] Programmable logic on rate limiting
 - [ ] Circuit breaker implementation
