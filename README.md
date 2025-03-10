@@ -22,7 +22,7 @@ This API Gateway serves as a central point of control for managing API traffic a
 docker compose up --build
 ```
 
-2. Navigate to `http://localhost:8000`, and configure it
+2. Navigate to `http://localhost:3000`, and configure it
 - Default username & password: `admin` & `password123`
   - Those credentials should be replaced in a real scenario
 

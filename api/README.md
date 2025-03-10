@@ -31,22 +31,17 @@ To run the final dev|prod build from a Docker container:
    ```
 
 ## Testing
-1. Run the full test suite (without the one for the AI Agent)
+1. Run the full test suite
    ```sh
    just tests
    ```
 
-2. Run the AI Agent tests (You'll need an API key)
-   ```sh
-   jsut tests-ai
-   ```
-
-3. Run specific test(s) with full logs based on a grepping pattern 
+2. Run specific test(s) with full logs based on a grepping pattern 
    ```sh
    just test {test_name_pattern}
    ```
 
-4. Run test coverage
+3. Run test coverage
    ```sh
    just test-coverage
    ```
