@@ -15,6 +15,23 @@ This API Gateway serves as a central point of control for managing API traffic a
 - **Plugin System**: Extend functionality through plugins (coming soon)
 - **Configuration UI**: User-friendly web interface for all gateway operations
 
+## To test it
+
+1. Start the Gateway
+```sh
+docker compose up --build
+```
+
+2. Navigate to `http://localhost:8000`, and configure it
+- Default username & password: `admin` & `password123`
+  - Those credentials should be replaced in a real scenario
+
+3. Curl the Gateway
+```sh
+curl http://localhost:8000/your/route/
+```
+
+
 ## Screenshots
 
 ### Gateway Configuration
